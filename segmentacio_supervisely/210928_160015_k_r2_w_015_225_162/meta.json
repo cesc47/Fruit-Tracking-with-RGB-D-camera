@@ -1,0 +1,22 @@
+{
+    "classes": [
+        {
+            "title": "apple",
+            "shape": "rectangle",
+            "color": "#DBC13D",
+            "geometry_config": {},
+            "id": 10016506,
+            "hotkey": ""
+        },
+        {
+            "title": "apple_v",
+            "shape": "any",
+            "color": "#BE0E7D",
+            "geometry_config": {},
+            "id": 10032285,
+            "hotkey": "V"
+        }
+    ],
+    "tags": [],
+    "projectType": "videos"
+}

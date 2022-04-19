@@ -1,0 +1,8 @@
+
+*.pyc
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/ka_frame_extractor.iml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
