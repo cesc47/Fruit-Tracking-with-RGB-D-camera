@@ -1,7 +1,7 @@
 # carpetas
-data
+data/
 data/organizacion
-extractor_frames_videos
+extractor_frames_videos/
 
 # Ficheros que no se deberian de subir (FOTOS, GIFS, PICKLEs)
 *.png
@@ -142,3 +142,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+.idea/
