@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="changes organization">
-      <change afterPath="$PROJECT_DIR$/tools/dataset_gestions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tools/read_segmentation.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/tools/visualization.py" afterDir="false" />
+    <list default="true" id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="changes backup">
+      <change afterPath="$PROJECT_DIR$/tools/utils.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/basetrack.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/byte_tracker.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/kalman_filter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/matching.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/track.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/segmentacio_pomes.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detectron2_inference.py" beforeDir="false" afterPath="$PROJECT_DIR$/detectron2_+_tracking/detectron2_inference.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/read_segmentation.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/dataset_gestions.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/dataset_gestions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/read_segmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/read_segmentation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/visualization.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/sort/sort.py" beforeDir="false" afterPath="$PROJECT_DIR$/yolov5_+_tracking/sort/sort.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/track_cesc.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_cesc.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_pol_v2.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,7 +32,7 @@
     </option>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/ByteTrack" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -33,28 +43,31 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/francesc/PycharmProjects/M6&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/yolov5/data",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/scripts" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/datasets/SegmentacioPomes_v2.v2i.yolov5pytorch" />
       <recent name="$PROJECT_DIR$/data/Apple_Tracking_db" />
-      <recent name="$PROJECT_DIR$/Apple_Tracking_db" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/datasets/SegmentacioPomes_v2.v2i.yolov5pytorch" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
       <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
       <recent name="$PROJECT_DIR$/tools" />
-      <recent name="$PROJECT_DIR$/yolo_+_tracking_manual" />
-      <recent name="$PROJECT_DIR$/data" />
-      <recent name="$PROJECT_DIR$/detectron2_+_tracking" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.detect_pol_v2">
+  <component name="RunManager" selected="Python.train">
     <configuration name="dataset_gestions" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Fruit-Tracking-with-RGB-D-camera" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -63,7 +76,7 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tools" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
@@ -76,7 +89,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="detect_pol_v2" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="detect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Fruit-Tracking-with-RGB-D-camera" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -88,7 +101,28 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_pol_v2.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect.py" />
+      <option name="PARAMETERS" value="--weights ./runs/train/yolov5s_results/weights/best.pt --source ../datasets/Apple_Tracking_db_yolo/test/images --save-txt --save-conf --save-crop --agnostic-nms" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="track" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/track.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -97,7 +131,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="detectron2_inference" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="train" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Fruit-Tracking-with-RGB-D-camera" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -105,33 +139,12 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/detectron2_+_tracking/detectron2_inference.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="read_segmentation" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="Fruit-Tracking-with-RGB-D-camera" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tools/read_segmentation.py" />
-      <option name="PARAMETERS" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/train.py" />
+      <option name="PARAMETERS" value="--batch 16 --epochs 50 --data segmentacio_pomes.yaml --weights '' --cfg yolov5s.yaml --name yolov5s_results" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -160,13 +173,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="Python.dataset_gestions" />
+      <item itemvalue="Python.detect" />
+      <item itemvalue="Python.train" />
+      <item itemvalue="Python.track_cesc" />
+      <item itemvalue="Python.visualization" />
+    </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.detect_pol_v2" />
+        <item itemvalue="Python.train" />
         <item itemvalue="Python.visualization" />
+        <item itemvalue="Python.detect" />
         <item itemvalue="Python.dataset_gestions" />
-        <item itemvalue="Python.read_segmentation" />
-        <item itemvalue="Python.detectron2_inference" />
+        <item itemvalue="Python.track_cesc" />
       </list>
     </recent_temporary>
   </component>
@@ -186,7 +206,28 @@
       <option name="project" value="LOCAL" />
       <updated>1652782761921</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="changes backup">
+      <created>1653570270455</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570270455</updated>
+    </task>
+    <task id="LOCAL-00003" summary="changes backup">
+      <created>1653570384827</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570384827</updated>
+    </task>
+    <task id="LOCAL-00004" summary="changes backup">
+      <created>1653570466406</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570466406</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -202,7 +243,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="changes organization" />
-    <option name="LAST_COMMIT_MESSAGE" value="changes organization" />
+    <MESSAGE value="changes backup" />
+    <option name="LAST_COMMIT_MESSAGE" value="changes backup" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -211,11 +253,6 @@
           <url>file://$PROJECT_DIR$/detectron2_+_tracking/detectron2_inference.py</url>
           <line>53</line>
           <option name="timeStamp" value="7" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_pol_v2.py</url>
-          <line>307</line>
-          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

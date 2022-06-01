@@ -1,7 +1,8 @@
 # carpetas
 data/
-data/organizacion
+data/organizacion/
 extractor_frames_videos/
+yolov5_+_tracking/datasets/
 
 # Ficheros que no se deberian de subir (FOTOS, GIFS, PICKLEs)
 *.png

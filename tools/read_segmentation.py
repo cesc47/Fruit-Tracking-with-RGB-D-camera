@@ -2,7 +2,7 @@ import json
 import os
 
 # located in data/Apple_tracking_db
-GLOBAL_PATH_DB = './data/Apple_Tracking_db/'
+GLOBAL_PATH_DB = '../data/Apple_Tracking_db/'
 
 
 def read_segmentation(video_name):

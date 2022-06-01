@@ -3,6 +3,7 @@ from read_segmentation import read_segmentation
 import cv2
 import numpy as np
 import random
+from utils import convert_bbox_from_yolo_format
 
 # located in data/Apple_tracking_db
 GLOBAL_PATH_DB = './data/Apple_Tracking_db'
@@ -14,8 +15,13 @@ def plot_gt_bboxes_in_img(annotations, video_name, frame_num, draw_centroids=Fal
     :param annotations: loaded .json file from supervisely
     :param video_name: name of the video
     :param frame_num: frame number to plot
+    :param draw_centroids: if True, draw centroids of the bounding boxes
     :param show_img: if True, show the image
+    :return:
+    rgb_img: rgb image
+    labels: list of labels
     """
+
 
     # load the annotations for that specific frame
     annotation = annotations['frames'][frame_num]
@@ -70,6 +76,9 @@ def plot_gt_bboxes_in_video(annotations, video_name, init_frame, end_frame, plot
     Plot the ground truth bounding boxes in a video.
     :param annotations: loaded .json file from supervisely
     :param video_name: name of the video
+    :param init_frame: first frame to plot
+    :param end_frame: last frame to plot
+    :param plot_tail: if True, plot the tail of tracklets
     """
     # make sure that init_frame is lower than end_frame
     if init_frame > end_frame:
@@ -120,7 +129,7 @@ def plot_gt_bboxes_in_video(annotations, video_name, init_frame, end_frame, plot
 
     # press 0 to show images
     for img in rgb_imgs:
-        img = cv2.rotate(img, cv2.cv2.ROTATE_90_CLOCKWISE)
+        # img = cv2.rotate(img, cv2.cv2.ROTATE_90_CLOCKWISE)
         cv2.imshow('img', img)
         key = cv2.waitKey(0)
 
@@ -128,14 +137,56 @@ def plot_gt_bboxes_in_video(annotations, video_name, init_frame, end_frame, plot
         if key == ord("q"):
             break
 
+
+def plot_bboxes_in_img_yolo(img_name, split='training'):
+    """
+    Plot the bounding boxes in an image using YOLO format for the labels.
+    :param img_name: name of the image
+    :param split: 'training' or 'valid' or 'test'
+    """
+    path = os.path.join(os.getcwd(), 'yolov5_+_tracking', 'datasets', 'Apple_Tracking_db_yolo', split)
+
+    # see if the image exists
+    path_to_img = os.path.join(path, 'images', img_name + '.png')
+    if not os.path.isfile(path_to_img):
+        raise AssertionError('Image not found')
+
+    path_to_label = os.path.join(path, 'labels', img_name + '.txt')
+    if not os.path.isfile(path_to_img):
+        raise AssertionError('Label not found')
+
+    # load the image
+    img = cv2.imread(path_to_img)
+
+    # load the labels
+    with open(path_to_label, 'r') as f:
+        labels = f.readlines()
+
+    # process labels
+    for label in labels:
+        label = label.split()
+        label = [float(x) for x in label]
+        _, x, y, h, w = label
+        x_min, y_min, x_max, y_max = convert_bbox_from_yolo_format(x, y, h, w)
+        cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+
+    # press 0 to show images
+    cv2.imshow('img', img)
+    key = cv2.waitKey(0)
+
+
 if __name__ == "__main__":
     """
     video_name = '210928_094225_k_r2_e_015_175_162'
     annotations = read_segmentation(video_name)
     plot_gt_bboxes_in_video(annotations, video_name, init_frame=0, end_frame=20)
     """
-
-    video_name = '210726_180555_k_r2_a_060_225_162'
+    """
+    video_name = '210906_121930_k_r2_e_015_125_162'
     annotations = read_segmentation(video_name)
     # plot_gt_bboxes_in_img(annotations, video_name, frame_num=0, show_img=True)
     plot_gt_bboxes_in_video(annotations, video_name, init_frame=0, end_frame=13)
+    """
+
+    img = '210726_170244_k_r2_a_015_225_162_697_154_C'
+    plot_bboxes_in_img_yolo(img)
