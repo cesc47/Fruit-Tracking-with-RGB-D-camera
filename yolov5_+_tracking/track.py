@@ -6,9 +6,6 @@ from bytetrack import byte_tracker
 from tools.utils import compute_centroids_bboxes_from_gt_yolo
 
 
-# TODO: create tracker for each video?
-
-
 def track_detections_frame(tracking_predictions, detections, tracker, tracker_type, img_size=(1080, 1920)):
     """
     Performs the tracking of the detections in a frame.
@@ -57,7 +54,7 @@ def track_detections_frame(tracking_predictions, detections, tracker, tracker_ty
     return det_centers, det_ids, tracking_predictions
 
 
-def read_from_yolo(path, ground_truth=False, img_size=(1920, 1080)):
+def read_from_yolo(path, ground_truth=False, img_size=(1080, 1920)):
     """
     Reads detections from yolo output file.
     :param path: path to yolo output file
@@ -74,12 +71,16 @@ def read_from_yolo(path, ground_truth=False, img_size=(1920, 1080)):
     # for each .txt we have to go and search for the ids of the objects that are in ./data/Apple_Tracking_db/
     if ground_truth:
         # for all the files in the folder read the detections
-        for gt_file in os.listdir(path):
+        for gt_file in sorted(os.listdir(path)):
             # read the ground truth annotations
             results = {
                 'ids': [],
                 'bboxes': [],
+                'id_video': ''
             }
+            id_video = (gt_file.split('.')[0]).split('_')[:-2]
+            results['id_video'] = '_'.join(id_video)
+
             for videoname in os.listdir(path_to_db):
                 # if file_path does not end with .txt or .xlsx, continue
                 if not videoname.endswith('.txt') and not videoname.endswith('.xlsx'):
@@ -112,10 +113,10 @@ def read_from_yolo(path, ground_truth=False, img_size=(1920, 1080)):
                         # add detections to all_detections list
                         all_results.append(results)
 
-
+    # not gt, detections
     else:
         # for all the files in the folder read the detections
-        for detections_file in os.listdir(path):
+        for detections_file in sorted(os.listdir(path)):
             # read detections from frame
             with open(os.path.join(path, detections_file), 'r') as f:
                 lines = f.readlines()
@@ -142,60 +143,15 @@ def read_from_yolo(path, ground_truth=False, img_size=(1920, 1080)):
     return all_results
 
 
-def create_tracker():
-    print('a')
-
-
-def tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers):
+def create_tracker(tracker_type):
     """
-    Updates the accumulator with the ground truth and the detections of the current frame
-    :param accumulator: accumulator to update
-    :param ground_truth: ground truth of the current frame
-    :param det_ids: ids of the detections of the current frame
-    :param det_centers: centers of the detections of the current frame
+    Create a tracker based on the tracker_type. The tracker_type can be either 'sort', 'deepsort' or 'bytetrack'. The
+    tracker_type 'sort' is based on the SORT tracker. The tracker_type 'deepsort' is based on the DeepSORT tracker. The
+    tracker_type 'bytetrack' is based on the Bytetrack tracker.
+    :param tracker_type: the tracker type
+    :return: the tracker
     """
-    # update the accumulator with the detections
-    accumulator.update(
-        ground_truth['ids'],  # Ground truth objects in this frame
-        det_ids,  # Detector hypotheses in this frame
-        mm.distances.norm2squared_matrix(compute_centroids_bboxes_from_gt_yolo(ground_truth), det_centers)
-        # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
-    )
-
-
-def tracking_evaluation_results(accumulator):
-    """
-    Computes the metrics (results) of the tracking
-    :param accumulator: accumulator to compute the metrics
-    """
-    # Compute the metrics
-    mh = mm.metrics.create()
-    summary = mh.compute(accumulator, metrics=['precision', 'recall', 'idp', 'idr', 'idf1'], name='acc')
-    print(summary)
-
-
-def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', img_size=(1920, 1080)):
-    """
-    Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
-    ground truth the labels from supervisely (.json) but the labels from yolo (.txt)
-    :param dataset_name: name of the dataset
-    :param exp_name: name of the experiment (in yolo folder)
-    :param tracker_type: type of tracker (e.g. sort, bytetrack)
-    :param partition: partition where the results are computed => test, train or val
-    :param img_size: size of the image (1920, 1080)
-    """
-    if partition != ('test' or 'train' or 'valid'):
-        raise AssertionError('partition should be named: test, train or valid')
-
-    # the ground truths are in the ./data/Apple_Tracking_db dataset
-    path_ground_truths = os.path.join('datasets', dataset_name, partition, 'labels')
-
-    # path_detections is the folder where the detections from yolo are stored
-    path_detections = os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels')
-
-    # Create the accumulator that will be updated during each frame
-    accumulator = mm.MOTAccumulator(auto_id=True)
-
+    # todo: deepsort implementation
     # create the tracker
     if tracker_type == 'sort' or tracker_type == 'Sort' or tracker_type == 'SORT':
         tracker = sort.Sort()
@@ -205,27 +161,122 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     else:
         raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
 
+    # Create the accumulator that will be updated during each frame
+    accumulator = mm.MOTAccumulator(auto_id=True)
+
+    return tracker, accumulator
+
+
+def reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_id):
+    """
+    Reset the tracker and the accumulator.
+    :param accumulator: the accumulator to reset (show metrics of tracking)
+    :param tracker_type: the tracker type (sort, deepsort or bytetrack)
+    :param tracker_evaluation: the tracker evaluation (show metrics of tracking => boolean)
+    :param anterior_video_id: the id of the previous video
+    """
+    if tracker_evaluation:
+        # compute the metrics (results)
+        tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
+
+    tracker, accumulator = create_tracker(tracker_type)
+
+    return tracker, accumulator
+
+
+def tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation):
+    """
+    Updates the accumulator with the ground truth and the detections of the current frame
+    :param accumulator: accumulator to update
+    :param ground_truth: ground truth of the current frame
+    :param det_ids: ids of the detections of the current frame
+    :param det_centers: centers of the detections of the current frame
+    :param tracker_evaluation: tracker update params of the current frame if true
+    """
+    if tracker_evaluation:
+        # update the accumulator with the detections
+        accumulator.update(
+            ground_truth['ids'],  # Ground truth objects in this frame
+            det_ids,  # Detector hypotheses in this frame
+            mm.distances.norm2squared_matrix(compute_centroids_bboxes_from_gt_yolo(ground_truth), det_centers)
+            # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
+        )
+
+
+def tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id):
+    """
+    Computes the metrics (results) of the tracking
+    :param accumulator: accumulator to compute the metrics
+    :param tracker_evaluation: if True, the metrics are computed for the tracker
+    :param anterior_video_id: id of the video
+    """
+    if tracker_evaluation:
+        # Compute the metrics
+        print('printing results for video {}'.format(anterior_video_id))
+        mh = mm.metrics.create()
+        summary = mh.compute(accumulator, metrics=['precision', 'recall', 'idf1'], name='acc')
+        print(summary)
+        print('\n')
+
+
+def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', img_size=(1080, 1920),
+                       tracker_evaluation=True):
+    """
+    Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
+    ground truth the labels from supervisely (.json) but the labels from yolo (.txt)
+    :param dataset_name: name of the dataset
+    :param exp_name: name of the experiment (in yolo folder)
+    :param tracker_type: type of tracker (e.g. sort, bytetrack)
+    :param partition: partition where the results are computed => test, train or val
+    :param img_size: size of the image (1920, 1080)
+    :param tracker_evaluation: if True, the metrics are computed for the tracker
+    """
+    if partition != ('test' or 'train' or 'valid'):
+        raise AssertionError('partition should be named: test, train or valid')
+
     # where will be stored the predictions of the tracker
-    tracking_predictions = []
+    # tracking_predictions = []
 
     # process ground truths from yolo input files
-    ground_truths = read_from_yolo(path_ground_truths, ground_truth=True, img_size=img_size)
+    # the ground truths are in the ./data/Apple_Tracking_db dataset
+    ground_truths = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
+                                   ground_truth=True, img_size=img_size)
 
     # read detections from yolo output files
-    all_detections = read_from_yolo(path_detections, ground_truth=False, img_size=img_size)
+    # path_detections is the folder where the detections from yolo are stored
+    all_detections = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
+                                    ground_truth=False, img_size=img_size)
 
+    anterior_video_id = None
     # iterate for each img:
     for ground_truth, detections in zip(ground_truths, all_detections):
+        # if video_id is not the same as the current video_id, then we have to reset the tracker
+        if anterior_video_id is None:
+            # create the tracker
+            tracker, accumulator = create_tracker(tracker_type)
+            anterior_video_id = ground_truth['id_video']
+
+        elif anterior_video_id != ground_truth['id_video']:
+            # reset and create the tracker and print results if tracker_evaluation is True
+            tracker, accumulator = reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_id)
+            anterior_video_id = ground_truth['id_video']
+
+        tracking_predictions = []
+
         # perform the tracking
         det_centers, det_ids, tracking_predictions = track_detections_frame(tracking_predictions, detections,
                                                                             tracker, tracker_type)
 
-        # update the accumulator
-        tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers)
+        # todo: visualization of the tracking results
 
-    # compute the metrics (results)
-    tracking_evaluation_results(accumulator)
+        # update the accumulator
+        tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation)
+
+    # print the results for the last video
+    tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
+
 
 if __name__ == '__main__':
     track_yolo_results(dataset_name='Apple_Tracking_db_yolo', exp_name='yolov5s',
-                       tracker_type='bytetrack', partition='test', img_size=(1080, 1920))
+                       tracker_type='bytetrack', partition='test', img_size=(1080, 1920),
+                       tracker_evaluation=True)
