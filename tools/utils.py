@@ -91,3 +91,11 @@ def get_gt_range_index_imgs(video_name):
     str_video = '_'.join(str_video)
 
     return str_video, np.min(list_frame_numbers)
+
+
+def compute_centroids_bboxes_from_gt_yolo(ground_truth):
+    gt_centers = []
+    # compute centroid of bbox
+    for bbox in ground_truth['bboxes']:
+        gt_centers.append((int((bbox[0] + bbox[2]) / 2), int((bbox[1] + bbox[3]) / 2)))
+    return gt_centers

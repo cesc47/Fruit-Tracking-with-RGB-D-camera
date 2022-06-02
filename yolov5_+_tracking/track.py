@@ -2,64 +2,14 @@ import os
 from sort import sort
 import motmetrics as mm
 import numpy as np
-import json
 from bytetrack import byte_tracker
+from tools.utils import compute_centroids_bboxes_from_gt_yolo
 
 
-def track(path_detections, video_name_gt, tracker_type='sort', img_size=(1920, 1080)):
-    """
-    Performs the tracking of the detections in a video.
-    params:
-        path_detections: path to the detections
-        video_name_gt: name of the video (without the extension) for the ground truth
-        tracker_type: type of the tracker (default: Sort)
-        img_size: size of the image (default: (1920, 1080))
-    returns:
-        tracking_predictions: list of the tracking predictions of the tracker
-
-    """
-    # Create the accumulator that will be updated during each frame
-    accumulator = mm.MOTAccumulator(auto_id=True)
-
-    # read detections from yolo output file
-    all_detections = read_from_yolo(path_detections, img_size)
-
-    # read ground truth from ground truth file
-    ground_truths = read_segmentation(video_name_gt)
-
-    # process ground truths
-    annotations = process_ground_truths(ground_truths)
-
-    # where will be stored the predictions of the tracker
-    tracking_predictions = []
-
-    # create the tracker
-    if tracker_type == 'sort':
-        tracker = sort.Sort()
-
-    # for each frame:
-    for frame_num, detections in enumerate(all_detections):
-        # perform the tracking
-        det_centers, det_ids, tracking_predictions = track_detections_frame(tracking_predictions, detections,
-                                                                            tracker, tracker_type=tracker_type)
-
-        # update the accumulator with the detections
-        accumulator.update(
-            annotations[frame_num]['id'],  # Ground truth objects in this frame
-            det_ids,  # Detector hypotheses in this frame
-            mm.distances.norm2squared_matrix(annotations[frame_num]['centroid'], det_centers)
-            # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
-        )
-        
-    # Compute the metrics
-    mh = mm.metrics.create()
-    summary = mh.compute(accumulator, metrics=['precision', 'recall', 'idp', 'idr', 'idf1'], name='acc')
-    print(summary)
-
-    return tracking_predictions
+# TODO: create tracker for each video?
 
 
-def track_detections_frame(tracking_predictions, detections, tracker, tracker_type, img_size=(1920, 1080)):
+def track_detections_frame(tracking_predictions, detections, tracker, tracker_type, img_size=(1080, 1920)):
     """
     Performs the tracking of the detections in a frame.
     params:
@@ -86,7 +36,7 @@ def track_detections_frame(tracking_predictions, detections, tracker, tracker_ty
             trackers = tracker.update(np.array(detections))
 
         for t in trackers:
-            det_centers.append((int(t[0] + t[2] / 2), int(t[1] + t[3] / 2)))
+            det_centers.append((int((t[0] + t[2]) / 2), int((t[1] + t[3]) / 2)))
             det_ids.append(int(t[4]))
             tracking_predictions.append(
                 [int(t[4]), int(t[0]), int(t[1]), int(t[2] - t[0]), int(t[3] - t[1])])
@@ -99,7 +49,7 @@ def track_detections_frame(tracking_predictions, detections, tracker, tracker_ty
             trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
 
         for t in trackers:
-            det_centers.append((int(t.tlbr[0] + t.tlbr[2] / 2), int(t.tlbr[1] + t.tlbr[3] / 2)))
+            det_centers.append((int((t.tlbr[0] + t.tlbr[2]) / 2), int((t.tlbr[1] + t.tlbr[3]) / 2)))
             det_ids.append(int(t.track_id))
             tracking_predictions.append(
                 [int(t.track_id), int(t.tlbr[0]), int(t.tlbr[1]), int(t.tlbr[2] - t.tlbr[0]), int(t.tlbr[3] - t.tlbr[1])])
@@ -107,118 +57,121 @@ def track_detections_frame(tracking_predictions, detections, tracker, tracker_ty
     return det_centers, det_ids, tracking_predictions
 
 
-def process_ground_truths(annotations):
-    """
-    Processes the ground truth annotations. Assigns the id to each object and computes the centroid of each object.
-    params:
-        annotations: list of the annotations
-    returns:
-        all_labels: list of the annotations processed
-    """
-
-    # process the ground truth annotations and store all of them in a list
-    all_labels = []
-
-    for annotations_frame in annotations['frames']:
-        # for each frame:
-        labels = {
-            'centroid': [],
-            'id': [],
-        }
-        for figure in annotations_frame['figures']:
-            # get the bounding box for each figure
-            xtl, ytl = figure['geometry']['points']['exterior'][0]
-            xbr, ybr = figure['geometry']['points']['exterior'][1]
-            # get the centroid of the bounding box
-            centroid = (int((xtl + xbr) / 2), int((ytl + ybr) / 2))
-            # save the centroid and the id of the figure
-            labels['centroid'].append(centroid)
-            labels['id'].append(figure['objectKey'])
-
-        all_labels.append(labels)
-
-    # convert the id's (are stranges codes...) to integers
-    list_ids = []
-    for labels in all_labels:
-        for unique_id in labels['id']:
-            if unique_id not in list_ids:
-                list_ids.append(unique_id)
-
-    for labels in all_labels:
-        for i in range(len(labels['id'])):
-            labels['id'][i] = list_ids.index(labels['id'][i])
-
-    return all_labels
-
-
-def read_from_yolo(path_detections, ground_truth=False, img_size=(1920, 1080)):
+def read_from_yolo(path, ground_truth=False, img_size=(1920, 1080)):
     """
     Reads detections from yolo output file.
-    :param path_detections: path to yolo output file
+    :param path: path to yolo output file
     :param ground_truth: if True, the ground truth annotations are read instead of the detections
     :param img_size: size of the image
     :return: list of detections/ground truths (for all frames)
     """
-    # this is where all the detections from all the frames will be stored
-    all_detections = []
+    # this is where all the results (labels or detections) from all the frames will be stored
+    all_results = []
 
-    # for all the files in the folder read the detections
-    for detections_file in os.listdir(path_detections):
-        # read detections from frame
-        with open(os.path.join(path_detections, detections_file), 'r') as f:
-            lines = f.readlines()
+    # path to db
+    path_to_db = '../data/Apple_Tracking_db'
 
-        # convert each line to float numbers
-        detections = [list(map(float, line.split(' '))) for line in lines]
+    # for each .txt we have to go and search for the ids of the objects that are in ./data/Apple_Tracking_db/
+    if ground_truth:
+        # for all the files in the folder read the detections
+        for gt_file in os.listdir(path):
+            # read the ground truth annotations
+            results = {
+                'ids': [],
+                'bboxes': [],
+            }
+            for videoname in os.listdir(path_to_db):
+                # if file_path does not end with .txt or .xlsx, continue
+                if not videoname.endswith('.txt') and not videoname.endswith('.xlsx'):
+                    # check if exists detections_file in this folder
+                    if os.path.exists(os.path.join(path_to_db, videoname, 'segmentation', 'labels_yolo_format+ids', gt_file)):
+                        # if exists, read the detections
+                        with open(os.path.join(
+                                path_to_db, videoname, 'segmentation', 'labels_yolo_format+ids', gt_file), 'r') as f:
+                            lines = f.readlines()
 
-        # get the bounding boxes and the detections
-        detections = [detection[1:] for detection in detections]
+                        # convert each line to float numbers
+                        ground_truths = [list(map(float, line.split(' '))) for line in lines]
 
-        # unnormalize the bounding boxes by image size (1920, 1080) and convert to int (x, y, w, h)
-        # if ground truth, the .txt hasn't got last col of scores
-        if ground_truth:
-            detections = [
-                (int(detection[0] * img_size[0]), int(detection[1] * img_size[1]), int(detection[2] * img_size[0]),
-                 int(detection[3] * img_size[1])) for detection in detections]
+                        # get the ids of the objects
+                        results['ids'] = [int(ground_truth[1]) for ground_truth in ground_truths]
+
+                        # get the bounding boxes and the detections
+                        results['bboxes'] = [ground_truth[2:] for ground_truth in ground_truths]
+
+                        # unnormalize the bounding boxes by image size (1920, 1080) and convert to int (x, y, w, h)
+                        # if ground truth, the .txt hasn't got last col of scores
+                        results['bboxes'] = [(int(bbox[0] * img_size[0]), int(bbox[1] * img_size[1]),
+                                              int(bbox[2] * img_size[0]), int(bbox[3] * img_size[1]))
+                                             for bbox in results['bboxes']]
+
+                        # convert from (x, y, w, h) to (x1, y1, x2, y2)
+                        results['bboxes'] = [(bbox[0], bbox[1], bbox[0] + bbox[2], bbox[1] + bbox[3])
+                                             for bbox in results['bboxes']]
+
+                        # add detections to all_detections list
+                        all_results.append(results)
+
+
+    else:
+        # for all the files in the folder read the detections
+        for detections_file in os.listdir(path):
+            # read detections from frame
+            with open(os.path.join(path, detections_file), 'r') as f:
+                lines = f.readlines()
+
+            # convert each line to float numbers
+            detections = [list(map(float, line.split(' '))) for line in lines]
+
+            # get the bounding boxes and the detections
+            detections = [detection[1:] for detection in detections]
+
+            # unnormalize the bounding boxes by image size (1920, 1080) and convert to int (x, y, w, h)
+            # if ground truth, the .txt hasn't got last col of scores
+            detections = [(int(detection[0] * img_size[0]), int(detection[1] * img_size[1]),
+                                 int(detection[2] * img_size[0]), int(detection[3] * img_size[1]), detection[4])
+                                 for detection in detections]
 
             # convert from (x, y, w, h) to (x1, y1, x2, y2)
-            detections = [
-                (detection[0], detection[1], detection[0] + detection[2], detection[1] + detection[3])
-                for detection in detections]
+            detections = [(detection[0], detection[1], detection[0] + detection[2], detection[1] + detection[3],
+                           detection[4]) for detection in detections]
 
-        else:
-            detections = [
-                (int(detection[0] * img_size[0]), int(detection[1] * img_size[1]), int(detection[2] * img_size[0]),
-                 int(detection[3] * img_size[1]), detection[4]) for detection in detections]
+            # add detections to all_detections list
+            all_results.append(detections)
 
-            # convert from (x, y, w, h) to (x1, y1, x2, y2)
-            detections = [
-                (detection[0], detection[1], detection[0] + detection[2], detection[1] + detection[3], detection[4])
-                for detection in detections]
-
-        # add detections to all_detections list
-        all_detections.append(detections)
-
-    return all_detections
+    return all_results
 
 
-def read_segmentation(video_name):
+def create_tracker():
+    print('a')
+
+
+def tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers):
     """
-    Reads the segmentation file and returns the segmentation.
-    params:
-        video_name: name of the video
-    returns:
-        segmentation: parsed json containing the annotations
+    Updates the accumulator with the ground truth and the detections of the current frame
+    :param accumulator: accumulator to update
+    :param ground_truth: ground truth of the current frame
+    :param det_ids: ids of the detections of the current frame
+    :param det_centers: centers of the detections of the current frame
     """
+    # update the accumulator with the detections
+    accumulator.update(
+        ground_truth['ids'],  # Ground truth objects in this frame
+        det_ids,  # Detector hypotheses in this frame
+        mm.distances.norm2squared_matrix(compute_centroids_bboxes_from_gt_yolo(ground_truth), det_centers)
+        # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
+    )
 
-    GLOBAL_PATH_DB = './../data/Apple_Tracking_db/'
 
-    path_ann = os.path.join(GLOBAL_PATH_DB, video_name, 'segmentation', 'ann.json')
-    with open(path_ann) as fh:
-        data = fh.read()
-    annotations = json.loads(data)
-
-    return annotations
+def tracking_evaluation_results(accumulator):
+    """
+    Computes the metrics (results) of the tracking
+    :param accumulator: accumulator to compute the metrics
+    """
+    # Compute the metrics
+    mh = mm.metrics.create()
+    summary = mh.compute(accumulator, metrics=['precision', 'recall', 'idp', 'idr', 'idf1'], name='acc')
+    print(summary)
 
 
 def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', img_size=(1920, 1080)):
@@ -234,10 +187,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     if partition != ('test' or 'train' or 'valid'):
         raise AssertionError('partition should be named: test, train or valid')
 
-    # if tracker_type != ('sort' or 'bytetrack' or 'deepsort'):
-    #     raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
-
-    # by default the dataset must be located in ./dataset (outside the yolov5 folder)
+    # the ground truths are in the ./data/Apple_Tracking_db dataset
     path_ground_truths = os.path.join('datasets', dataset_name, partition, 'labels')
 
     # path_detections is the folder where the detections from yolo are stored
@@ -247,10 +197,13 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     accumulator = mm.MOTAccumulator(auto_id=True)
 
     # create the tracker
-    if tracker_type == 'sort':
+    if tracker_type == 'sort' or tracker_type == 'Sort' or tracker_type == 'SORT':
         tracker = sort.Sort()
-    elif tracker_type == 'bytetrack':
+    elif tracker_type == 'bytetrack' or tracker_type == 'Bytetrack' \
+            or tracker_type == 'ByteTrack' or tracker_type == 'BYTETRACK':
         tracker = byte_tracker.BYTETracker()
+    else:
+        raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
 
     # where will be stored the predictions of the tracker
     tracking_predictions = []
@@ -267,14 +220,12 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
         det_centers, det_ids, tracking_predictions = track_detections_frame(tracking_predictions, detections,
                                                                             tracker, tracker_type)
 
+        # update the accumulator
+        tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers)
 
-# todo: prova bytetrack amb ground truths
-
+    # compute the metrics (results)
+    tracking_evaluation_results(accumulator)
 
 if __name__ == '__main__':
-    # path_detections = 'yolov5/runs/detect/exp3/labels'
-    # video_name_gt = '210928_165030_k_r2_w_015_125_162'
-    # track(path_detections, video_name_gt=video_name_gt)
-
-    track_yolo_results(dataset_name='SegmentacioPomes_v2.v2i.yolov5pytorch', exp_name='prova_yolo_small_nms',
-                       tracker_type='bytetrack', partition='test', img_size=(1920, 1080))
+    track_yolo_results(dataset_name='Apple_Tracking_db_yolo', exp_name='yolov5s',
+                       tracker_type='bytetrack', partition='test', img_size=(1080, 1920))

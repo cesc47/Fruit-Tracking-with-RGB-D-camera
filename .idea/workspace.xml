@@ -2,22 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="changes backup">
-      <change afterPath="$PROJECT_DIR$/tools/utils.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/basetrack.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/byte_tracker.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/kalman_filter.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/matching.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/track.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/segmentacio_pomes.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tools/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/track_old.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tools/dataset_gestions.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/dataset_gestions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tools/read_segmentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/read_segmentation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tools/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/visualization.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/sort/sort.py" beforeDir="false" afterPath="$PROJECT_DIR$/yolov5_+_tracking/sort/sort.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/track_cesc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_cesc.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect_pol_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/yolov5_+_tracking/track.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -32,7 +21,7 @@
     </option>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -43,14 +32,14 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/yolov5/data",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/yolov5/data&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
@@ -67,7 +56,7 @@
       <recent name="$PROJECT_DIR$/tools" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.train">
+  <component name="RunManager" selected="Python.track">
     <configuration name="dataset_gestions" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Fruit-Tracking-with-RGB-D-camera" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -144,7 +133,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/train.py" />
-      <option name="PARAMETERS" value="--batch 16 --epochs 50 --data segmentacio_pomes.yaml --weights '' --cfg yolov5s.yaml --name yolov5s_results" />
+      <option name="PARAMETERS" value="--batch 16 --epochs 30 --data segmentacio_pomes.yaml --weights yolov5s.pt --name yolov5s_results" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -174,19 +163,19 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.track" />
       <item itemvalue="Python.dataset_gestions" />
       <item itemvalue="Python.detect" />
       <item itemvalue="Python.train" />
-      <item itemvalue="Python.track_cesc" />
       <item itemvalue="Python.visualization" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.track" />
+        <item itemvalue="Python.detect" />
         <item itemvalue="Python.train" />
         <item itemvalue="Python.visualization" />
-        <item itemvalue="Python.detect" />
         <item itemvalue="Python.dataset_gestions" />
-        <item itemvalue="Python.track_cesc" />
       </list>
     </recent_temporary>
   </component>
@@ -227,7 +216,14 @@
       <option name="project" value="LOCAL" />
       <updated>1653570466406</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="changes backup">
+      <created>1654103999323</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1654103999323</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
