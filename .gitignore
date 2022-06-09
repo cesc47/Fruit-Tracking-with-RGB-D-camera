@@ -4,6 +4,7 @@ data/organizacion/
 extractor_frames_videos/
 yolov5_+_tracking/datasets/
 detectron2_+_tracking/
+.idea/
 
 # Ficheros que no se deberian de subir (FOTOS, GIFS, PICKLEs)
 *.png
