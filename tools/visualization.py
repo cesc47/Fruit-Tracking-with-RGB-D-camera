@@ -1,9 +1,8 @@
 import os
-from read_segmentation import read_segmentation
 import cv2
 import numpy as np
 import random
-from utils import convert_bbox_from_yolo_format
+#from utils import convert_bbox_from_yolo_format
 
 # located in data/Apple_tracking_db
 GLOBAL_PATH_DB = './data/Apple_Tracking_db'
@@ -175,6 +174,56 @@ def plot_bboxes_in_img_yolo(img_name, split='training'):
     key = cv2.waitKey(0)
 
 
+def visualize_tracking_results_frame(img_name, path_to_imgs, ground_truth, prediction):
+    """
+    Visualize the tracking results for a single frame. The ground truth and the prediction are dicts.
+    :param img_name: name of the image
+    :param path_to_imgs: path to the images
+    :param ground_truth: ground truth: dict with keys 'id' and 'bboxes' from the ground truth
+    :param prediction: prediction: dict with keys 'id' and 'bboxes' from the detections
+    """
+    # load the image
+    img = cv2.imread(os.path.join(path_to_imgs, img_name))
+
+    # iterate over the ground truth and prediction dicts
+    for bbox, id in zip(ground_truth['bboxes'], ground_truth['ids']):
+        # get the bounding box coordinates
+        x_min, y_min, x_max, y_max = bbox
+        # plot the bounding box: ground truth in green
+        cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+        # plot the label: ground truth in green
+        cv2.putText(img, str(id), (x_min, y_min), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+    for bbox, id in zip(prediction['bboxes'], prediction['ids']):
+        # get the bounding box coordinates
+        x_min, y_min, x_max, y_max = bbox
+        # plot the bounding box: prediction in red
+        cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
+        # plot the label: prediction in red
+        cv2.putText(img, str(id), (x_min, y_min), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+    # press 0 to show images
+    cv2.imshow('img', img)
+    key = cv2.waitKey(0)
+
+
+def visualize_tracking_results(tracking_predictions, ground_truths, partition, dataset_name):
+    """
+    Visualize the tracking results for all frames The ground truth and the prediction are a list of dicts.
+    :param tracking_predictions: list of predictions for all frames (dicts)
+    :param ground_truths: list of ground truth for all frames (dicts)
+    :param partition: 'training' or 'valid' or 'test'
+    :param dataset_name: name of the dataset
+    """
+    # get the path to the images
+    # images are located in the yolov5+tracking folder
+    path_to_imgs = os.path.join('../yolov5_+_tracking', 'datasets', dataset_name, partition, 'images')
+
+    # read all images from the folder
+    for idx, img_name in enumerate(sorted(os.listdir(path_to_imgs))):
+        visualize_tracking_results_frame(img_name, path_to_imgs, ground_truths[idx], tracking_predictions[idx])
+
+
 if __name__ == "__main__":
     """
     video_name = '210928_094225_k_r2_e_015_175_162'
@@ -188,5 +237,5 @@ if __name__ == "__main__":
     plot_gt_bboxes_in_video(annotations, video_name, init_frame=0, end_frame=13)
     """
 
-    img = '210726_170244_k_r2_a_015_225_162_697_154_C'
-    plot_bboxes_in_img_yolo(img)
+    img = '210726_170244_k_r2_a_015_225_162_697_172_C'
+    plot_bboxes_in_img_yolo(img, split='test')

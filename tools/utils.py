@@ -94,8 +94,35 @@ def get_gt_range_index_imgs(video_name):
 
 
 def compute_centroids_bboxes_from_gt_yolo(ground_truth):
+    """
+    Compute the centroids of the bounding boxes from the ground truth from the yolo format
+    :param ground_truth: the ground truth in the yolo format
+    :return: the centroids of the bounding boxes from the ground truth from the yolo format in the format (x, y)
+    """
     gt_centers = []
     # compute centroid of bbox
     for bbox in ground_truth['bboxes']:
         gt_centers.append((int((bbox[0] + bbox[2]) / 2), int((bbox[1] + bbox[3]) / 2)))
     return gt_centers
+
+
+def convert_gt_to_readable_detections(ground_truth):
+    """
+    Convert the ground truth to the detections format. gets the ground truth in a dict format ('id', 'bboxes' and
+    'id_video') and returns the detections in a list format ('bbox', 1) for each detection
+    :param ground_truth: the ground truth
+    :return: the detections
+    """
+    detections = []
+    for bbox in ground_truth['bboxes']:
+        bbox_detection = (bbox[0], bbox[1], bbox[2], bbox[3], 1)
+        detections.append(bbox_detection)
+    return detections
+
+
+def compute_area_bbox_tlbr(bbox):
+    """
+    Compute the area of a bbox in tlbr format (top left and bottom right) and return it.
+    :param bbox: bbox in tlbr format
+    """
+    return (bbox[2]-bbox[0]) * (bbox[3]-bbox[1])

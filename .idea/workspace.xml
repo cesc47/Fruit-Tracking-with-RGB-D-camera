@@ -2,8 +2,28 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="changes backup">
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/deepsort.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/detection.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/iou_matching.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/kalman_filter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/linear_assignment.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/reid_model.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/deepsort/track.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/motdt/basetrack.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/motdt/kalman_filter.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/motdt/matching.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/motdt/motdt_tracker.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/motdt/reid_model.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolov5_+_tracking/tests.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/visualization.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/byte_tracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/byte_tracker.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/yolov5_+_tracking/track.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/tracking_deepsort_senzill_v2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5/requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolov5_+_tracking/yolov5_weights_lite_version.pt" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,52 +49,31 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/yolov5/data&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "last_opened_file_path": "/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking",
+    "settings.editor.selected.configurable": "vcs.Subversion.SSH"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/scripts" />
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking/datasets/SegmentacioPomes_v2.v2i.yolov5pytorch" />
-      <recent name="$PROJECT_DIR$/data/Apple_Tracking_db" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
-      <recent name="$PROJECT_DIR$/yolov5_+_tracking/datasets/SegmentacioPomes_v2.v2i.yolov5pytorch" />
       <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
       <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
-      <recent name="$PROJECT_DIR$/tools" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/scripts" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/datasets/SegmentacioPomes_v2.v2i.yolov5pytorch" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/runs/train/zed+kinect_pol/weights" />
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.track">
-    <configuration name="dataset_gestions" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="Fruit-Tracking-with-RGB-D-camera" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tools" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tools/dataset_gestions.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.train">
     <configuration name="detect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Fruit-Tracking-with-RGB-D-camera" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -88,7 +87,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect.py" />
-      <option name="PARAMETERS" value="--weights ./runs/train/yolov5s_results/weights/best.pt --source ../datasets/Apple_Tracking_db_yolo/test/images --save-txt --save-conf --save-crop --agnostic-nms" />
+      <option name="PARAMETERS" value="--weights ./runs/train/zed+kinect_pol/weights/best.pt --source ../datasets/Apple_Tracking_db_yolo/test/images --name zed+kinect_pol --save-txt --save-conf --save-crop --agnostic-nms" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="tests" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/tests.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -160,23 +180,26 @@
       <method v="2" />
     </configuration>
     <list>
+      <item itemvalue="Python.tests" />
       <item itemvalue="Python.track" />
-      <item itemvalue="Python.dataset_gestions" />
       <item itemvalue="Python.detect" />
       <item itemvalue="Python.train" />
       <item itemvalue="Python.visualization" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.train" />
         <item itemvalue="Python.track" />
         <item itemvalue="Python.detect" />
-        <item itemvalue="Python.train" />
+        <item itemvalue="Python.tests" />
         <item itemvalue="Python.visualization" />
-        <item itemvalue="Python.dataset_gestions" />
       </list>
     </recent_temporary>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="" />
@@ -227,7 +250,14 @@
       <option name="project" value="LOCAL" />
       <updated>1654176511613</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="changes backup">
+      <created>1654185879130</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1654185879130</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -245,16 +275,5 @@
     <MESSAGE value="changes organization" />
     <MESSAGE value="changes backup" />
     <option name="LAST_COMMIT_MESSAGE" value="changes backup" />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/detectron2_+_tracking/detectron2_inference.py</url>
-          <line>53</line>
-          <option name="timeStamp" value="7" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>
