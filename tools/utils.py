@@ -126,3 +126,4 @@ def compute_area_bbox_tlbr(bbox):
     :param bbox: bbox in tlbr format
     """
     return (bbox[2]-bbox[0]) * (bbox[3]-bbox[1])
+
