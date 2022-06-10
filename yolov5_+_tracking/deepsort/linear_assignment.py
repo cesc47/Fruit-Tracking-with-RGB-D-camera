@@ -1,9 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
-# from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment as linear_assignment
-from yolox.deepsort_tracker import kalman_filter
-
+from .kalman_filter import chi2inv95
 
 INFTY_COST = 1e+5
 
@@ -171,7 +169,7 @@ def gate_cost_matrix(
         Returns the modified cost matrix.
     """
     gating_dim = 2 if only_position else 4
-    gating_threshold = kalman_filter.chi2inv95[gating_dim]
+    gating_threshold = chi2inv95[gating_dim]
     measurements = np.asarray(
         [detections[i].to_xyah() for i in detection_indices])
     for row, track_idx in enumerate(track_indices):

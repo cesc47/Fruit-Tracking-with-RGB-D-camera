@@ -3,6 +3,7 @@ from sort import sort
 import motmetrics as mm
 import numpy as np
 from bytetrack import byte_tracker
+from deepsort import deepsort
 from tools.utils import compute_centroids_bboxes_from_gt_yolo, convert_bbox_from_yolo_format, \
     convert_gt_to_readable_detections
 from tools.visualization import visualize_tracking_results
@@ -154,13 +155,18 @@ def create_tracker(tracker_type):
     :param tracker_type: the tracker type
     :return: the tracker
     """
-    # todo: deepsort implementation
     # create the tracker
     if tracker_type == 'sort' or tracker_type == 'Sort' or tracker_type == 'SORT':
         tracker = sort.Sort()
+
     elif tracker_type == 'bytetrack' or tracker_type == 'Bytetrack' \
             or tracker_type == 'ByteTrack' or tracker_type == 'BYTETRACK':
         tracker = byte_tracker.BYTETracker()
+
+    elif tracker_type == 'deepsort' or tracker_type == 'DeepSort' \
+            or tracker_type == 'DEEPSORT' or tracker_type == 'Deepsort':
+        tracker = deepsort.DeepSort(model_path=os.path.join('yolov5_+_tracking', 'deepsort', 'checkpoints', 'ckpt.t7'))
+
     else:
         raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
 
@@ -225,11 +231,12 @@ def tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_
                    'num_predictions', 'num_unique_objects', 'mostly_tracked', 'partially_tracked', 'num_fragmentations',
                    'mota', 'precision', 'recall', 'idf1', ]
         summary = mh.compute(accumulator, metrics=metrics, name='acc')
+        """
         # print all the values of the summary
         for key, value in summary.items():
             print('{}: {}'.format(key, value[0]))
         print('\n')
-
+        """
         return summary, metrics
 
 
@@ -264,8 +271,8 @@ def save_tracking_results(results, dataset_name, exp_name, tracker_type, partiti
             writer.writerow(to_write)
 
 
-def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test',
-                       tracker_evaluation=True, visualize_results=False, save_results=False):
+def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', tracker_evaluation=True,
+                       visualize_results=False, save_results=False):
     """
     Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
     ground truth the labels from supervisely (.json) but the labels from yolo (.txt)

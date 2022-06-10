@@ -1,11 +1,11 @@
 import numpy as np
 import torch
 import cv2
-import os
 
 from .reid_model import Extractor
-from yolox.deepsort_tracker import kalman_filter, linear_assignment, iou_matching
-from yolox.data.dataloading import get_yolox_datadir
+from .kalman_filter import KalmanFilter
+from .linear_assignment import linear_assignment
+from .iou_matching import iou_cost
 from .detection import Detection
 from .track import Track
 
@@ -29,7 +29,7 @@ class Tracker:
         self.max_age = max_age
         self.n_init = n_init
 
-        self.kf = kalman_filter.KalmanFilter()
+        self.kf = KalmanFilter()
         self.tracks = []
         self._next_id = 1
 
@@ -111,7 +111,7 @@ class Tracker:
             self.tracks[k].time_since_update != 1]
         matches_b, unmatched_tracks_b, unmatched_detections = \
             linear_assignment.min_cost_matching(
-                iou_matching.iou_cost, self.max_iou_distance, self.tracks,
+                iou_cost, self.max_iou_distance, self.tracks,
                 detections, iou_track_candidates, unmatched_detections)
 
         matches = matches_a + matches_b
@@ -165,18 +165,20 @@ class DeepSort(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    def update(self, output_results, img_info, img_size, img_file_name):
-        img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
+    # def update(self, output_results, img_info, img_size, img_file_name):
+    def update(self, output_results, img_file_name):
+        #img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
         ori_img = cv2.imread(img_file_name)
         self.height, self.width = ori_img.shape[:2]
         # post process detections
-        output_results = output_results.cpu().numpy()
-        confidences = output_results[:, 4] * output_results[:, 5]
-        
+        # output_results = output_results.cpu().numpy()
+        # confidences = output_results[:, 4] * output_results[:, 5]
+        confidences = output_results[:, 4]
         bboxes = output_results[:, :4]  # x1y1x2y2
-        img_h, img_w = img_info[0], img_info[1]
-        scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
-        bboxes /= scale
+        # modifico esto - cesc
+        # img_h, img_w = img_info[0], img_info[1]
+        # scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
+        # bboxes /= scale
         bbox_xyxy = bboxes
         bbox_tlwh = self._xyxy_to_tlwh_array(bbox_xyxy)
         remain_inds = confidences > self.min_confidence
