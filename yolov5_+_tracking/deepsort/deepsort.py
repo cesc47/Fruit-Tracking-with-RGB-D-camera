@@ -4,7 +4,7 @@ import cv2
 
 from .reid_model import Extractor
 from .kalman_filter import KalmanFilter
-from .linear_assignment import linear_assignment
+from .linear_assignment import gate_cost_matrix, matching_cascade, min_cost_matching
 from .iou_matching import iou_cost
 from .detection import Detection
 from .track import Track
@@ -84,7 +84,7 @@ class Tracker:
             features = np.array([dets[i].feature for i in detection_indices])
             targets = np.array([tracks[i].track_id for i in track_indices])
             cost_matrix = self.metric.distance(features, targets)
-            cost_matrix = linear_assignment.gate_cost_matrix(
+            cost_matrix = gate_cost_matrix(
                 self.kf, cost_matrix, tracks, dets, track_indices,
                 detection_indices)
 
@@ -98,7 +98,7 @@ class Tracker:
 
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
-            linear_assignment.matching_cascade(
+            matching_cascade(
                 gated_metric, self.metric.matching_threshold, self.max_age,
                 self.tracks, detections, confirmed_tracks)
 
@@ -110,7 +110,7 @@ class Tracker:
             k for k in unmatched_tracks_a if
             self.tracks[k].time_since_update != 1]
         matches_b, unmatched_tracks_b, unmatched_detections = \
-            linear_assignment.min_cost_matching(
+            min_cost_matching(
                 iou_cost, self.max_iou_distance, self.tracks,
                 detections, iou_track_candidates, unmatched_detections)
 
@@ -167,7 +167,7 @@ class DeepSort(object):
 
     # def update(self, output_results, img_info, img_size, img_file_name):
     def update(self, output_results, img_file_name):
-        #img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
+        # img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
         ori_img = cv2.imread(img_file_name)
         self.height, self.width = ori_img.shape[:2]
         # post process detections

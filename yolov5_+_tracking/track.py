@@ -10,7 +10,8 @@ from tools.visualization import visualize_tracking_results
 import csv
 
 
-def track_detections_frame(predictions, detections, tracker, tracker_type, anterior_video_id, img_size=(1080, 1920)):
+def track_detections_frame(predictions, detections, tracker, tracker_type, anterior_video_id, frame_name,
+                           dataset_name, partition, img_size=(1080, 1920)):
     """
     Performs the tracking of the detections in a frame.
     params:
@@ -34,31 +35,33 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
     }
 
     # if there are no detections in the frame, skip it (all zeros)
-    if tracker_type == 'sort':
-        if len(detections) == 0:
-            trackers = tracker.update(np.empty((0, 5)))
-        else:
-            # update the tracker with the detections
+    if len(detections) == 0:
+        trackers = tracker.update(np.empty((0, 5)))
+
+    # if there are detections in the frame, track them
+    else:
+        # update the tracker with the detections
+        if tracker_type == 'sort':
             trackers = tracker.update(np.array(detections))
 
+        elif tracker_type == 'bytetrack':
+            trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
+
+        elif tracker_type == 'deepsort':
+            path_to_img = os.path.join('datasets', dataset_name, partition, 'images', f'{frame_name}.png')
+            trackers = tracker.update(np.array(detections), path_to_img)
+
         for t in trackers:
+            # prepare data to be all the same format for all trackers
+            if tracker_type == 'bytetrack':
+                t_id = t.track_id
+                t = t.tlbr
+                t = np.append(t, t_id)
+
             det_centers.append((int((t[0] + t[2]) / 2), int((t[1] + t[3]) / 2)))
             det_ids.append(int(t[4]))
             results['bboxes'].append([int(t[0]), int(t[1]), int(t[2]), int(t[3])])
             results['ids'].append(int(t[4]))
-
-    elif tracker_type == 'bytetrack':
-        if len(detections) == 0:
-            trackers = tracker.update(np.empty((0, 5)), img_info=img_size, img_size=img_size)
-        else:
-            # update the tracker with the detections
-            trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
-
-        for t in trackers:
-            det_centers.append((int((t.tlbr[0] + t.tlbr[2]) / 2), int((t.tlbr[1] + t.tlbr[3]) / 2)))
-            det_ids.append(int(t.track_id))
-            results['bboxes'].append([int(t.tlbr[0]), int(t.tlbr[1]), int(t.tlbr[2]), int(t.tlbr[3])])
-            results['ids'].append(int(t.track_id))
 
     predictions.append(results)
 
@@ -74,6 +77,9 @@ def read_from_yolo(path, ground_truth=False):
     """
     # this is where all the results (labels or detections) from all the frames will be stored
     all_results = []
+
+    # where all the names of the videos are stored
+    videonames = []
 
     # path to db
     path_to_db = '../data/Apple_Tracking_db'
@@ -119,6 +125,9 @@ def read_from_yolo(path, ground_truth=False):
                         # add detections to all_detections list
                         all_results.append(results)
 
+                        # add the name of the video to the list
+                        videonames.append(gt_file.split('.')[0])
+
     # not gt, detections
     else:
         # for all the files in the folder read the detections
@@ -144,7 +153,10 @@ def read_from_yolo(path, ground_truth=False):
             # add detections to all_detections list
             all_results.append(detections)
 
-    return all_results
+            # add the name of the video to the list
+            videonames.append(detections_file.split('.')[0])
+
+    return all_results, videonames
 
 
 def create_tracker(tracker_type):
@@ -156,16 +168,14 @@ def create_tracker(tracker_type):
     :return: the tracker
     """
     # create the tracker
-    if tracker_type == 'sort' or tracker_type == 'Sort' or tracker_type == 'SORT':
+    if tracker_type == 'sort':
         tracker = sort.Sort()
 
-    elif tracker_type == 'bytetrack' or tracker_type == 'Bytetrack' \
-            or tracker_type == 'ByteTrack' or tracker_type == 'BYTETRACK':
+    elif tracker_type == 'bytetrack':
         tracker = byte_tracker.BYTETracker()
 
-    elif tracker_type == 'deepsort' or tracker_type == 'DeepSort' \
-            or tracker_type == 'DEEPSORT' or tracker_type == 'Deepsort':
-        tracker = deepsort.DeepSort(model_path=os.path.join('yolov5_+_tracking', 'deepsort', 'checkpoints', 'ckpt.t7'))
+    elif tracker_type == 'deepsort':
+        tracker = deepsort.DeepSort(model_path=os.path.join('deepsort', 'checkpoints', 'ckpt.t7'))
 
     else:
         raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
@@ -231,12 +241,12 @@ def tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_
                    'num_predictions', 'num_unique_objects', 'mostly_tracked', 'partially_tracked', 'num_fragmentations',
                    'mota', 'precision', 'recall', 'idf1', ]
         summary = mh.compute(accumulator, metrics=metrics, name='acc')
-        """
+
         # print all the values of the summary
         for key, value in summary.items():
             print('{}: {}'.format(key, value[0]))
         print('\n')
-        """
+
         return summary, metrics
 
 
@@ -298,17 +308,18 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
 
     # process ground truths from yolo input files
     # the ground truths are in the ./data/Apple_Tracking_db dataset
-    ground_truths = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
-                                   ground_truth=True)
+    ground_truths, video_names_gt = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
+                                                   ground_truth=True)
 
     # read detections from yolo output files
     # path_detections is the folder where the detections from yolo are stored
-    all_detections = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
-                                    ground_truth=False)
+    all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
+                                                     ground_truth=False)
 
     anterior_video_id = None
+
     # iterate for each img:
-    for ground_truth, detections in zip(ground_truths, all_detections):
+    for idx_frame, (ground_truth, detections) in enumerate(zip(ground_truths, all_detections)):
         # if video_id is not the same as the current video_id, then we have to reset the tracker
         if anterior_video_id is None:
             # create the tracker
@@ -328,7 +339,10 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
                                                                                 detections,
                                                                                 tracker,
                                                                                 tracker_type,
-                                                                                anterior_video_id)
+                                                                                anterior_video_id,
+                                                                                video_names_det[idx_frame],
+                                                                                dataset_name,
+                                                                                partition)
 
         # update the accumulator
         tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation)
@@ -381,8 +395,8 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
 
     # process ground truths from yolo input files
     # the ground truths are in the ./data/Apple_Tracking_db dataset
-    ground_truths = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
-                                   ground_truth=True)
+    ground_truths, video_names_gt = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
+                                                   ground_truth=True)
 
     anterior_video_id = None
     # iterate for each img:
@@ -435,10 +449,10 @@ if __name__ == '__main__':
 
     tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
                                                                 exp_name='yolov5s',
-                                                                tracker_type='bytetrack',
+                                                                tracker_type='sort',
                                                                 partition='test',
                                                                 tracker_evaluation=True,
-                                                                visualize_results=False,
+                                                                visualize_results=True,
                                                                 save_results=True)
     """
     tracking_predictions, tracking_results = track_gt_files(dataset_name='Apple_Tracking_db_yolo',
