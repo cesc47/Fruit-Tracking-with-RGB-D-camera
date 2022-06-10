@@ -400,7 +400,7 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
 
     anterior_video_id = None
     # iterate for each img:
-    for ground_truth in ground_truths:
+    for idx_frame, ground_truth in enumerate(ground_truths):
         # if video_id is not the same as the current video_id, then we have to reset the tracker
         if anterior_video_id is None:
             # create the tracker
@@ -422,7 +422,10 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
                                                                                 gt_detections,
                                                                                 tracker,
                                                                                 tracker_type,
-                                                                                anterior_video_id)
+                                                                                anterior_video_id,
+                                                                                video_names_gt[idx_frame],
+                                                                                dataset_name,
+                                                                                partition)
 
         # update the accumulator
         tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation)
