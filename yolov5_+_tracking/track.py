@@ -5,7 +5,7 @@ import numpy as np
 from bytetrack import byte_tracker
 from deepsort import deepsort
 from tools.utils import compute_centroids_bboxes_from_gt_yolo, convert_bbox_from_yolo_format, \
-    convert_gt_to_readable_detections
+    convert_gt_to_readable_detections, filter_detections_by_size, augment_size_of_bboxes
 from tools.visualization import visualize_tracking_results
 import csv
 
@@ -68,10 +68,13 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
     return det_centers, det_ids, predictions
 
 
-def read_from_yolo(path, ground_truth=False):
+def read_from_yolo(path, filter_detections=True, agument_bbox_size=5, ground_truth=False):
     """
     Reads detections from yolo output file.
     :param path: path to yolo output file
+    :param filter_detections: if True, the detections are filtered by size (size hardcoded in utils.py, in function of the
+    distance between the camera and the apples: 125, 175 or 225), are hardcoded thanks to compute_sizes_all_gts()
+    :param agument_bbox_size: if True, the bboxes are augmented by each coordinate by the value of agument_bbox_size
     :param ground_truth: if True, the ground truth annotations are read instead of the detections
     :return: list of detections/ground truths (for all frames)
     """
@@ -150,6 +153,13 @@ def read_from_yolo(path, ground_truth=False):
             detections = [(bbox[0], bbox[1], bbox[2], bbox[3], detection[4])
                           for (detection, bbox) in zip(detections, bboxes)]
 
+            # filter detections with size (size hardcoded in utils.py, in function of the distance between the camera
+            # and the apples: 125, 175 or 225), are hardcoded thanks to compute_sizes_all_gts() function in utils.py
+            if filter_detections:
+                detections = filter_detections_by_size(detections, detections_file)
+
+            detections = augment_size_of_bboxes(detections, size_to_augment=agument_bbox_size)
+
             # add detections to all_detections list
             all_results.append(detections)
 
@@ -221,7 +231,7 @@ def tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_ce
         accumulator.update(
             gt_ids,  # Ground truth objects in this frame
             det_ids,  # Detector hypotheses in this frame
-            mm.distances.norm2squared_matrix(gt_centers, det_centers, max_d2=100)
+            mm.distances.norm2squared_matrix(gt_centers, det_centers, max_d2=2000)
             # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
         )
 
@@ -314,7 +324,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     # read detections from yolo output files
     # path_detections is the folder where the detections from yolo are stored
     all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
-                                                     ground_truth=False)
+                                                     filter_detections=True, agument_bbox_size=1, ground_truth=False)
 
     anterior_video_id = None
 
@@ -359,7 +369,11 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
         save_tracking_results(all_tracking_results, dataset_name, exp_name, tracker_type, partition, metrics)
 
     # if visualize_results is True, then we visualize the results of the tracker and the detections
-    if visualize_results:
+    if visualize_results and save_results:
+        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name, plot_gts=False,
+                                   plot_preds=True, save_video=True, path_to_save_video='results_tracking')
+
+    elif visualize_results and not save_results:
         visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name)
 
     return all_tracking_predictions, all_tracking_results
@@ -442,7 +456,10 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
         save_tracking_results(all_tracking_results, dataset_name, exp_name, tracker_type, partition, metrics)
 
     # if visualize_results is True, then we visualize the results of the tracker and the detections
-    if visualize_results:
+    if visualize_results and save_results:
+        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name, plot_gts=False,
+                                   plot_preds=True, save_video=True, path_to_save_video='results_tracking')
+    elif visualize_results and not save_results:
         visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name)
 
     return all_tracking_predictions, all_tracking_results
@@ -452,14 +469,14 @@ if __name__ == '__main__':
 
     tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
                                                                 exp_name='yolov5s',
-                                                                tracker_type='sort',
+                                                                tracker_type='bytetrack',
                                                                 partition='test',
                                                                 tracker_evaluation=True,
                                                                 visualize_results=True,
                                                                 save_results=True)
     """
     tracking_predictions, tracking_results = track_gt_files(dataset_name='Apple_Tracking_db_yolo',
-                                                            tracker_type='sort',
+                                                            tracker_type='bytetrack',
                                                             partition='test',
                                                             tracker_evaluation=True,
                                                             visualize_results=True,

@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from tools.read_segmentation import read_segmentation
 
 GLOBAL_PATH_DB = '../data/Apple_Tracking_db'
 
@@ -126,4 +127,98 @@ def compute_area_bbox_tlbr(bbox):
     :param bbox: bbox in tlbr format
     """
     return (bbox[2]-bbox[0]) * (bbox[3]-bbox[1])
+
+
+def compute_sizes_all_gts():
+    """
+    Compute the sizes of the bboxes in all the dataset. prints the sizes of the bboxes in all the dataset, one min area
+    and one max area per video.
+    """
+    video = sorted(os.listdir(GLOBAL_PATH_DB))
+    for video_name in video:
+        if not (video_name.endswith('.txt') or video_name.endswith('.xlsx')):
+            print(f'sizes for video {video_name} are:')
+            annotations = read_segmentation(video_name)
+
+            max_bbox = None
+            min_bbox = None
+
+            for annotation in annotations['frames'][:]:
+                for idx_figure, figure in enumerate(annotation['figures']):
+                    xtl, ytl = figure['geometry']['points']['exterior'][0]
+                    xbr, ybr = figure['geometry']['points']['exterior'][1]
+
+                    size_bbox = abs((xbr - xtl) * (ybr - ytl))
+
+                    if max_bbox is None:
+                        max_bbox = size_bbox
+                    else:
+                        max_bbox = max(max_bbox, size_bbox)
+
+                    if min_bbox is None:
+                        min_bbox = size_bbox
+                    else:
+                        min_bbox = min(min_bbox, size_bbox)
+
+            print(f'min area bbox: {min_bbox}, max area bbox: {max_bbox}')
+
+
+def filter_detections_by_size(detections, detection_file):
+    """
+    Filter the detections by size. gets the detections in a list format ('bbox', 1) and returns the detections in a
+    list format ('bbox', 1) with the detections that have a size bigger than a threshold. the threshold is defined
+    thanks to compute_sizes_all_gts().
+    :param detections: the detections in a list format ('bbox', 1)
+    :param detection_file: the name of the detection file
+    :return: the detections in a list format ('bbox', 1) with the detections that have a size bigger than a threshold
+    """
+
+    meters_to_apples = detection_file.split('_')[6]
+    if meters_to_apples == '225':
+        min_area = 100
+    elif meters_to_apples == '175':
+        min_area = 221
+    elif meters_to_apples == '125':
+        min_area = 624
+    else:
+        raise ValueError(f'unknown size {meters_to_apples}')
+
+    for detection in detections:
+        bbox = detection[:4]
+        if compute_area_bbox_tlbr(bbox) < min_area:
+            detections.remove(detection)
+
+    return detections
+
+
+def augment_size_of_bboxes(detections, size_to_augment):
+    """
+    Augment the size of the bboxes. gets the detections in a list format ('bbox', 1) and returns the detections in a
+    list format ('bbox', 1) with the detections enlarged. the size to augment is defined thanks to the size_to_augment
+    parameter.
+    :param detections: the detections in a list format ('bbox', 1)
+    :param size_to_augment: the size to augment, in pixels
+    :return: the detections in a list format ('bbox', 1) with the detections enlarged
+    """
+    detections_augmented = []
+    for detection in detections:
+        # convert tuple into list
+        detection = list(detection)
+
+        # augment the size of the bbox
+        detection[0] -= size_to_augment
+        detection[1] -= size_to_augment
+        detection[2] += size_to_augment
+        detection[3] += size_to_augment
+
+        # convert list into tuple
+        detection = tuple(detection)
+
+        detections_augmented.append(detection)
+
+    return detections_augmented
+
+if __name__ == '__main__':
+    compute_sizes_all_gts()
+
 

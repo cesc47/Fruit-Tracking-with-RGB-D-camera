@@ -55,6 +55,8 @@ def compute_min_apple_size_gts():
 
     return area_min_size
 
+
+
 if __name__ == '__main__':
     """
     tracking_predictions = track_yolo_results(dataset_name='Apple_Tracking_db_yolo', exp_name='yolov5s',
@@ -65,3 +67,4 @@ if __name__ == '__main__':
     print(f'size of the minimum apple: {area_min_size}')
     """
     print(f'size of the minimum apple: {compute_min_apple_size_gts()}')
+
