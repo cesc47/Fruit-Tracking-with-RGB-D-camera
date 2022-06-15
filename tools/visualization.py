@@ -258,7 +258,7 @@ def save_frames_to_video(imgs, path):
 
     # create the video writer
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(path, fourcc, 4, (imgs[0].shape[1], imgs[0].shape[0]))
+    out = cv2.VideoWriter(path, fourcc, 15, (imgs[0].shape[1], imgs[0].shape[0]))
 
     # write the images to the video0
     for img in imgs:

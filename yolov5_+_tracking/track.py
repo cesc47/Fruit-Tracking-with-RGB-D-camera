@@ -1,13 +1,13 @@
-import os
-from sort import sort
 import motmetrics as mm
-import numpy as np
+
+from sort import sort
 from bytetrack import byte_tracker
 from deepsort import deepsort
-from tools.utils import compute_centroids_bboxes_from_gt_yolo, convert_bbox_from_yolo_format, \
-    convert_gt_to_readable_detections, filter_detections_by_size, augment_size_of_bboxes
+
+from tools.utils import *
 from tools.visualization import visualize_tracking_results
-import csv
+from tools.metrics import tracking_evaluation_results, tracking_evaluation_update_params, save_tracking_results, \
+    evaluate_sequences_hota_metric
 
 
 def track_detections_frame(predictions, detections, tracker, tracker_type, anterior_video_id, frame_name,
@@ -36,7 +36,7 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
 
     # if there are no detections in the frame, skip it (all zeros)
     if len(detections) == 0:
-        trackers = tracker.update(np.empty((0, 5)))
+        tracker.update(np.empty((0, 5)))
 
     # if there are detections in the frame, track them
     else:
@@ -50,6 +50,9 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
         elif tracker_type == 'deepsort':
             path_to_img = os.path.join('datasets', dataset_name, partition, 'images', f'{frame_name}.png')
             trackers = tracker.update(np.array(detections), path_to_img)
+
+        else:
+            raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
 
         for t in trackers:
             # prepare data to be all the same format for all trackers
@@ -68,13 +71,13 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
     return det_centers, det_ids, predictions
 
 
-def read_from_yolo(path, filter_detections=True, agument_bbox_size=5, ground_truth=False):
+def read_from_yolo(path, filter_detections=True, augment_bbox_size=5, ground_truth=False):
     """
     Reads detections from yolo output file.
     :param path: path to yolo output file
-    :param filter_detections: if True, the detections are filtered by size (size hardcoded in utils.py, in function of the
-    distance between the camera and the apples: 125, 175 or 225), are hardcoded thanks to compute_sizes_all_gts()
-    :param agument_bbox_size: if True, the bboxes are augmented by each coordinate by the value of agument_bbox_size
+    :param filter_detections: if True, the detections are filtered by size (size hardcoded in utils.py, in function of
+    the distance between the camera and the apples: 125, 175 or 225), are hardcoded thanks to compute_sizes_all_gts()
+    :param augment_bbox_size: if True, the bboxes are augmented by each coordinate by the value of augment_bbox_size
     :param ground_truth: if True, the ground truth annotations are read instead of the detections
     :return: list of detections/ground truths (for all frames)
     """
@@ -158,7 +161,7 @@ def read_from_yolo(path, filter_detections=True, agument_bbox_size=5, ground_tru
             if filter_detections:
                 detections = filter_detections_by_size(detections, detections_file)
 
-            detections = augment_size_of_bboxes(detections, size_to_augment=agument_bbox_size)
+            detections = augment_size_of_bboxes(detections, size_to_augment=augment_bbox_size)
 
             # add detections to all_detections list
             all_results.append(detections)
@@ -215,82 +218,6 @@ def reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_
     return tracker, accumulator, results
 
 
-def tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation):
-    """
-    Updates the accumulator with the ground truth and the detections of the current frame
-    :param accumulator: accumulator to update
-    :param ground_truth: ground truth of the current frame
-    :param det_ids: ids of the detections of the current frame
-    :param det_centers: centers of the detections of the current frame
-    :param tracker_evaluation: tracker update params of the current frame if true
-    """
-    if tracker_evaluation:
-        # update the accumulator with the detections
-        gt_ids = ground_truth['ids']
-        gt_centers = compute_centroids_bboxes_from_gt_yolo(ground_truth)
-        accumulator.update(
-            gt_ids,  # Ground truth objects in this frame
-            det_ids,  # Detector hypotheses in this frame
-            mm.distances.norm2squared_matrix(gt_centers, det_centers, max_d2=2000)
-            # Distances from object 1 to hypotheses 1, 2, 3 and Distances from object 2 to hypotheses 1, 2, 3
-        )
-
-
-def tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id):
-    """
-    Computes the metrics (results) of the tracking
-    :param accumulator: accumulator to compute the metrics
-    :param tracker_evaluation: if True, the metrics are computed for the tracker
-    :param anterior_video_id: id of the video
-    """
-    if tracker_evaluation:
-        # Compute the metrics
-        print('printing results for video {}'.format(anterior_video_id))
-        mh = mm.metrics.create()
-        metrics = ['num_frames', 'num_matches', 'num_misses', 'num_objects', 'num_false_positives', 'num_switches',
-                   'num_predictions', 'num_unique_objects', 'mostly_tracked', 'partially_tracked', 'num_fragmentations',
-                   'mota', 'precision', 'recall', 'idf1', ]
-        summary = mh.compute(accumulator, metrics=metrics, name='acc')
-
-        # print all the values of the summary
-        for key, value in summary.items():
-            print('{}: {}'.format(key, value[0]))
-        print('\n')
-
-        return summary, metrics
-
-
-def save_tracking_results(results, dataset_name, exp_name, tracker_type, partition, metrics):
-    """
-    Save the tracking results in a csv file. The tracking results are saved in the folder 'results_tracking'
-    :param results: tracking results to save
-    :param dataset_name: name of the dataset
-    :param exp_name: name of the experiment
-    :param tracker_type: type of the tracker
-    :param partition: partition of the dataset
-    :param metrics: metrics of the tracking
-    """
-    # create new folder for the results of the tracking if it does not exist
-    if not os.path.exists(os.path.join(os.getcwd(), 'results_tracking')):
-        os.mkdir(os.path.join(os.getcwd(), 'results_tracking'))
-
-    # save the results in a csv file
-    path_file = os.path.join('results_tracking', f'{dataset_name}_{exp_name}_{tracker_type}_{partition}.csv')
-
-    # if file already exists, delete it
-    if os.path.exists(path_file):
-        os.remove(path_file)
-
-    with open(path_file, 'a') as f:
-        writer = csv.writer(f)
-        metrics.insert(0, 'video_id')
-        writer.writerow(metrics)
-        for result, id_video in results:
-            to_write = [value[0] for _, value in result.items()]
-            to_write.insert(0, id_video)
-            writer.writerow(to_write)
-
-
 def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', tracker_evaluation=True,
                        visualize_results=False, save_results=False):
     """
@@ -304,7 +231,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     :param visualize_results: if True, the results are visualized in the images
     :param save_results: if True, the results are saved in a csv file
     """
-    if partition != ('test' or 'train' or 'valid'):
+    if partition != ('test' or 'training' or 'valid'):
         raise AssertionError('partition should be named: test, train or valid')
 
     # where will be stored the predictions of the tracker
@@ -324,7 +251,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     # read detections from yolo output files
     # path_detections is the folder where the detections from yolo are stored
     all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
-                                                     filter_detections=True, agument_bbox_size=1, ground_truth=False)
+                                                     filter_detections=True, augment_bbox_size=1, ground_truth=False)
 
     anterior_video_id = None
 
@@ -363,6 +290,9 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     # append the results to the list of results
     all_tracking_results.append([results, anterior_video_id])
 
+    # evaluate results of the sequences (HOTA metric)
+    hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
+
     # if save_results is True, then we save the results of the tracker and the detections
     if save_results:
         print('saving tracking results ...')
@@ -379,6 +309,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     return all_tracking_predictions, all_tracking_results
 
 
+# deprecated function
 def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='sort', partition='test',
                    tracker_evaluation=True, visualize_results=False, save_results=False):
     """
@@ -466,9 +397,8 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
 
 
 if __name__ == '__main__':
-
     tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
-                                                                exp_name='yolov5s',
+                                                                exp_name='yolov5x',
                                                                 tracker_type='bytetrack',
                                                                 partition='test',
                                                                 tracker_evaluation=True,

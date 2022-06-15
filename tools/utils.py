@@ -94,7 +94,7 @@ def get_gt_range_index_imgs(video_name):
     return str_video, np.min(list_frame_numbers)
 
 
-def compute_centroids_bboxes_from_gt_yolo(ground_truth):
+def compute_centroids_bboxes_tlbr(ground_truth):
     """
     Compute the centroids of the bounding boxes from the ground truth from the yolo format
     :param ground_truth: the ground truth in the yolo format
@@ -217,6 +217,7 @@ def augment_size_of_bboxes(detections, size_to_augment):
         detections_augmented.append(detection)
 
     return detections_augmented
+
 
 if __name__ == '__main__':
     compute_sizes_all_gts()
