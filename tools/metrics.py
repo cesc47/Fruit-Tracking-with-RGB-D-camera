@@ -200,7 +200,6 @@ def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
             # create other accumulator for computing hota metric
             hota_metric = HOTA()
 
-
             # generate the necessary data to compute the metrics
             data = compute_data_for_hota_metric(tracking_predictions_sequence, ground_truths_sequence)
 

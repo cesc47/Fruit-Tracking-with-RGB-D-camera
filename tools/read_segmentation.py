@@ -5,7 +5,7 @@ import os
 GLOBAL_PATH_DB = '../data/Apple_Tracking_db/'
 
 
-def read_segmentation(video_name):
+def read_segmentation(video_name, path_db=GLOBAL_PATH_DB):
     """
     Reads the segmentation file and returns the segmentation.
     params:
@@ -14,7 +14,7 @@ def read_segmentation(video_name):
         segmentation: parsed json containing the annotations
     """
 
-    path_ann = os.path.join(GLOBAL_PATH_DB, video_name, 'segmentation', 'ann.json')
+    path_ann = os.path.join(path_db, video_name, 'segmentation', 'ann.json')
     with open(path_ann) as fh:
         data = fh.read()
     annotations = json.loads(data)

@@ -68,14 +68,14 @@ def convert_bbox_from_yolo_format(x, y, w, h, size_img=(1080, 1920)):
     return round(x_min), round(y_min), round(x_max), round(y_max)
 
 
-def get_gt_range_index_imgs(video_name):
+def get_gt_range_index_imgs(video_name, path=GLOBAL_PATH_DB):
     """
     Get the ground truth range of the images of a video. The ground truth range is the range of the images that have
     a ground truth annotation.
     :param video_name: the name of the video
     :return: the ground truth range of the images of the video, and the name of the video
     """
-    path_images = os.path.join(GLOBAL_PATH_DB, video_name, 'images')
+    path_images = os.path.join(path, video_name, 'images')
 
     # read all path_images sorted
     images_sorted = sorted(os.listdir(path_images))

@@ -180,6 +180,7 @@ def create_tracker(tracker_type):
     :param tracker_type: the tracker type
     :return: the tracker
     """
+    # todo: generate reid network in bytetrack and deepsort: trained w/ rgb & rgb+d+i
     # create the tracker
     if tracker_type == 'sort':
         tracker = sort.Sort()
@@ -291,7 +292,7 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     all_tracking_results.append([results, anterior_video_id])
 
     # evaluate results of the sequences (HOTA metric)
-    hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
+    # hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
 
     # if save_results is True, then we save the results of the tracker and the detections
     if save_results:

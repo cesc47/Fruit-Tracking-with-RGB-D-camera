@@ -1,12 +1,12 @@
-import pandas as pd
 import cv2
+import json
+import shutil
+
+import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
-from read_segmentation import read_segmentation
-from visualization import plot_gt_bboxes_in_video
-import json
+
 from utils import *
-import shutil
 
 
 def refactor_id_frames_extractor():
@@ -187,7 +187,8 @@ def generate_yolo_labels():
     img_size = [1080, 1920]
 
     # path to db
-    path = '../data/Apple_Tracking_db'
+    # path = '../data/Apple_Tracking_db'
+    path = '../data/Zed_dataset'
 
     for video_name in os.listdir(path):
         if not (video_name.endswith('.xlsx') or video_name.endswith('.txt')):
@@ -202,12 +203,12 @@ def generate_yolo_labels():
             if not os.path.exists(os.path.join(path_to_annotations, 'labels_yolo_format')):
                 os.makedirs(os.path.join(path_to_annotations, 'labels_yolo_format'))
 
-            # read segmentation from the function in read segmentation.py
-            annotations = read_segmentation(video_name)
+            # read segmentation
+            annotations = read_segmentation(video_name, path_db=path)
 
             # get the index of the images in the video (to save them in .txt in the same format)
             # todo: arreglar esto por si alguna vez se cogen los frames que no sean consecutivos
-            str_video, index = get_gt_range_index_imgs(video_name)
+            str_video, index = get_gt_range_index_imgs(video_name, path=path)
 
             for annotation in annotations['frames'][:]:
                 # variable where the bboxes of that frame in yolo format will be stored
@@ -237,11 +238,16 @@ def generate_yolo_labels():
                 index += 1
 
 
-def create_custom_db_for_yolo(percentage_training=0.6, percentage_space=0.2, percentage_validation=0.1, percentage_test=0.1):
+def create_custom_db_for_yolo(path='../data/Apple_Tracking_db',
+                              path_to_new_db='../yolov5_+_tracking/datasets/Apple_Tracking_db_yolo',
+                              percentage_training=0.6, percentage_space=0.2,
+                              percentage_validation=0.1, percentage_test=0.1):
     """
     This function creates a custom dataset from the Apple_tracking_db for the yolo model. It will create a folder
     with the images and the labels in the same format as the dataset for the yolo model. It will also create a
     .txt file with the ids of the images in the db. The images will be saved in the same folder as the labels.
+    :param path: path to the db
+    :param path_to_new_db: path to the new db
     :param percentage_training: percentage of the dataset that will be used for training
     :param percentage_space: percentage of the dataset that will be used for space
     :param percentage_validation: percentage of the dataset that will be used for validation
@@ -251,12 +257,6 @@ def create_custom_db_for_yolo(percentage_training=0.6, percentage_space=0.2, per
     # make sure that the percentages sum 1
     if percentage_test + percentage_validation + percentage_space + percentage_training != 1:
         raise AssertionError('percentages are not equal to 1')
-
-    # path to the db
-    path = '../data/Apple_Tracking_db'
-
-    # path to the new db
-    path_to_new_db = '../yolov5_+_tracking/datasets/Apple_Tracking_db_yolo'
 
     # --------FOLDER CREATION----------
     # create the new folder if it does not exist
@@ -363,7 +363,7 @@ def generate_yolo_labels_and_ids():
 
             # get the index of the images in the video (to save them in .txt in the same format)
             # todo: arreglar esto por si alguna vez se cogen los frames que no sean consecutivos
-            str_video, index = get_gt_range_index_imgs(video_name)
+            str_video, index = get_gt_range_index_imgs(video_name, path)
 
             for annotation in annotations['frames'][:]:
                 # variable where the bboxes and the ids of that frame in yolo format will be stored
@@ -399,10 +399,47 @@ def generate_yolo_labels_and_ids():
                 index += 1
 
 
+def extract_frames_zed_camera():
+    """
+    This function extracts the frames from the zed camera.
+    """
+
+    # path to the zed camera
+    path_to_zed_camera = '../data/Zed_dataset'
+
+    for video_name in os.listdir(path_to_zed_camera):
+        print('-------------------------------------')
+        print(f'Extracting frames from {video_name}')
+        print('-------------------------------------')
+        for file in os.listdir(os.path.join(path_to_zed_camera, video_name, 'segmentation')):
+            if file.endswith('.mp4'):
+                path_video = os.path.join(path_to_zed_camera, video_name, 'segmentation', file)
+                # read the video
+                video = cv2.VideoCapture(path_video)
+                # extract the frames
+                index = 0
+                while video.isOpened():
+                    # read the frame
+                    ret, frame = video.read()
+                    # if the frame is not empty
+                    if ret:
+                        # save the frame
+                        cv2.imwrite(os.path.join(path_to_zed_camera, video_name, 'images',
+                                                 video_name + '_' + str(index) + '_C.png'), frame)
+                        index += 1
+                        print(f'Frame {index} extracted')
+                    else:
+                        video.release()
+                        cv2.destroyAllWindows()
+                        break
+
+
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
     # rotate_images(path_to_images='210928_165030_k_r2_w_015_125_162', clockwise=False, test=True)
     # rotate_segmentation()
     # generate_yolo_labels()
-    # create_custom_db_for_yolo()
-    generate_yolo_labels_and_ids()
+    create_custom_db_for_yolo(path='../data/Zed_dataset',
+                              path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
+    # generate_yolo_labels_and_ids()
+    # extract_frames_zed_camera()
