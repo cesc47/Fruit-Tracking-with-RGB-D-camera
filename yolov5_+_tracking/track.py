@@ -292,12 +292,13 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     all_tracking_results.append([results, anterior_video_id])
 
     # evaluate results of the sequences (HOTA metric)
-    # hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
+    hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
 
     # if save_results is True, then we save the results of the tracker and the detections
     if save_results:
         print('saving tracking results ...')
-        save_tracking_results(all_tracking_results, dataset_name, exp_name, tracker_type, partition, metrics)
+        save_tracking_results(all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
+                              partition, metrics)
 
     # if visualize_results is True, then we visualize the results of the tracker and the detections
     if visualize_results and save_results:

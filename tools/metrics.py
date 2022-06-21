@@ -143,34 +143,65 @@ def reinitialise_hota_metric_variables(id_past_frame=None):
     return id_past_frame, tracking_predictions_sequence, ground_truths_sequence
 
 
-def refactor_ids_in_sequence(sequence):
+def refactor_ids_in_sequence(sequence, gt=False):
     """
-    refactor the ids in the sequence. This function is used to refactor the ids in the sequence in order to work with
-    the metric.
+    refactor the ids in the sequence (ALL sequences). This function is used to refactor the ids in the sequence in order
+    to work with the metric.
     :param sequence: list of lists of detections
     :return: list of lists of detections with refactored ids
     """
-    # todo: hay que ordenar la lista de ids y mover las bboxes en acorde. esto es para que no hayan saltos entre los ids,
-    #  e.g. que en una secuencia, el id 3 no aparezca nunca. esto es para que no pete el codigo del hota.py
 
-    """
-    # 1. get all the ids in the sequence and sort it
-    ids_list = sorted(get_ids(sequence))
+    sequence_ordered = []
+    ids = []
 
-    new_bboxes = []
-    new_ids = []
+    # get the ids in the sequence (there are some jumps between ids)
     for frame in sequence:
-        # see if the id is in the list
         for id in frame['ids']:
-            if id in ids_list:
-                # get the index of the id in the list
-                index = ids_list.index(frame['ids'])
-                # get the bounding box of the id
-                bbox = frame['bboxes'][index]
-                # add the bounding box to the new list
-                new_bboxes.append(bbox)
+            if id not in ids:
+                ids.append(id)
+
+    # sort the ids
+    ids.sort()
+
+    # refactor the ids in the sequence. search for the id in the list and move the bbox to the right position
+    for frame in sequence:
+        if gt:
+            frame_ordered = {
+                'video_id': frame['id_video'],
+                'bboxes': [],
+                'ids': []
+            }
+        else:
+            frame_ordered = {
+                'video_id': frame['video_id'],
+                'bboxes': [],
+                'ids': []
+            }
+        for id in frame['ids']:
+            frame_ordered['ids'].append(ids.index(id))
+            frame_ordered['bboxes'].append(frame['bboxes'][frame['ids'].index(id)])
+        sequence_ordered.append(frame_ordered)
+
+    return sequence_ordered
+
+
+def reset_ids_sequence(sequence):
     """
-    print('todo...')
+    reset the ids in the sequence (for each sequence). This function is used to reset the ids in the sequence in order
+    to work with the metric. ids must start in 0 and be progressive.
+    :param sequence: list of lists of detections (sequence)
+    """
+    # get the value of the minimum id of the sequence
+    min_id = 1000000000000
+    for frame in sequence:
+        for id in frame['ids']:
+            if id < min_id:
+                min_id = id
+
+    # reset the ids in the sequence
+    for idx, frame in enumerate(sequence):
+        for id in frame['ids']:
+            sequence[idx]['ids'][frame['ids'].index(id)] = id - min_id
 
     return sequence
 
@@ -189,16 +220,19 @@ def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
     id_past_frame, tracking_predictions_sequence, ground_truths_sequence = reinitialise_hota_metric_variables()
 
     # refactor ids and bboxes (being coherent) of the ground truth and tracking predictions of the sequence
-    all_tracking_predictions = refactor_ids_in_sequence(all_tracking_predictions)
-    all_ground_truths = refactor_ids_in_sequence(all_ground_truths)
+    all_tracking_predictions = refactor_ids_in_sequence(all_tracking_predictions, gt=False)
+    all_ground_truths = refactor_ids_in_sequence(all_ground_truths, gt=True)
 
-    for predictions, ground_truths in zip(all_tracking_predictions, all_ground_truths):
+    for idx, (predictions, ground_truths) in enumerate(zip(all_tracking_predictions, all_ground_truths)):
         if id_past_frame is None:
             id_past_frame = predictions['video_id']
 
-        elif id_past_frame != predictions['video_id']:
+        elif id_past_frame != predictions['video_id'] or idx == len(all_tracking_predictions) - 1:
             # create other accumulator for computing hota metric
             hota_metric = HOTA()
+
+            tracking_predictions_sequence = reset_ids_sequence(tracking_predictions_sequence)
+            ground_truths_sequence = reset_ids_sequence(ground_truths_sequence)
 
             # generate the necessary data to compute the metrics
             data = compute_data_for_hota_metric(tracking_predictions_sequence, ground_truths_sequence)
@@ -214,18 +248,18 @@ def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
                 id_past_frame=predictions['video_id']
             )
 
-        else:
-            # add the predictions to the sequence
-            tracking_predictions_sequence.append(predictions)
-            ground_truths_sequence.append(ground_truths)
+        # add the predictions to the sequence
+        tracking_predictions_sequence.append(predictions)
+        ground_truths_sequence.append(ground_truths)
 
     return all_results
 
 
-def save_tracking_results(results, dataset_name, exp_name, tracker_type, partition, metrics):
+def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker_type, partition, metrics):
     """
     Save the tracking results in a csv file. The tracking results are saved in the folder 'results_tracking'
-    :param results: tracking results to save
+    :param results: tracking results to save (motmetrics)
+    :param results_hota: tracking results to save (hota metric)
     :param dataset_name: name of the dataset
     :param exp_name: name of the experiment
     :param tracker_type: type of the tracker
@@ -246,8 +280,10 @@ def save_tracking_results(results, dataset_name, exp_name, tracker_type, partiti
     with open(path_file, 'a') as f:
         writer = csv.writer(f)
         metrics.insert(0, 'video_id')
+        metrics.append('hota')
         writer.writerow(metrics)
-        for result, id_video in results:
+        for (result, id_video), hota in zip(results, results_hota):
             to_write = [value[0] for _, value in result.items()]
             to_write.insert(0, id_video)
+            to_write.append(hota['HOTA'][0])
             writer.writerow(to_write)
