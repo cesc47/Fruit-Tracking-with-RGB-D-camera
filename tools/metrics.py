@@ -118,6 +118,13 @@ def compute_similarity_scores_for_sequence(tracking_predictions_sequence, ground
 
 
 def compute_data_for_hota_metric(tracking_predictions_sequence, ground_truths_sequence):
+    """
+    computes the data for the hota metric. This function is used to compute the data for the hota metric. The data is
+    computed for each frame.
+    :param tracking_predictions_sequence: list of lists of tracking predictions
+    :param ground_truths_sequence: list of lists of ground truth
+    :return: data for the hota metric
+    """
     data = {'num_tracker_dets': get_num_dets(tracking_predictions_sequence),
             'num_gt_dets': get_num_dets(ground_truths_sequence),
             'num_tracker_ids': get_num_ids_from_sequence(tracking_predictions_sequence),
@@ -143,11 +150,11 @@ def reinitialise_hota_metric_variables(id_past_frame=None):
     return id_past_frame, tracking_predictions_sequence, ground_truths_sequence
 
 
-def refactor_ids_in_sequence(sequence, gt=False):
+def refactor_ids_in_sequence(all_sequences, gt=False):
     """
     refactor the ids in the sequence (ALL sequences). This function is used to refactor the ids in the sequence in order
     to work with the metric.
-    :param sequence: list of lists of detections
+    :param all_sequences: list of lists of detections
     :return: list of lists of detections with refactored ids
     """
 
@@ -155,7 +162,7 @@ def refactor_ids_in_sequence(sequence, gt=False):
     ids = []
 
     # get the ids in the sequence (there are some jumps between ids)
-    for frame in sequence:
+    for frame in all_sequences:
         for id in frame['ids']:
             if id not in ids:
                 ids.append(id)
@@ -164,7 +171,7 @@ def refactor_ids_in_sequence(sequence, gt=False):
     ids.sort()
 
     # refactor the ids in the sequence. search for the id in the list and move the bbox to the right position
-    for frame in sequence:
+    for frame in all_sequences:
         if gt:
             frame_ordered = {
                 'video_id': frame['id_video'],
@@ -183,6 +190,49 @@ def refactor_ids_in_sequence(sequence, gt=False):
         sequence_ordered.append(frame_ordered)
 
     return sequence_ordered
+
+
+def separate_all_sequences_by_video(all_sequences):
+    """
+    separate the sequences by video. This function is used to separate the sequences by video.
+    :param all_sequences: list of lists of detections
+    :return: list of lists of sequences
+    """
+    sequences_separated = []
+    same_sequence = []
+    past_id = None
+
+    for sequence in all_sequences:
+        if past_id is None:
+            past_id = sequence['video_id']
+            same_sequence.append(sequence)
+        elif past_id != sequence['video_id']:
+            sequences_separated.append(same_sequence)
+            past_id = sequence['video_id']
+            same_sequence = [sequence]
+        else:
+            same_sequence.append(sequence)
+
+    sequences_separated.append(same_sequence)
+
+    return sequences_separated
+
+
+def refactor_ids_sequences_v2(all_sequences, gt=False):
+    """
+    refactor the ids in the sequence (for each sequence). This function is used to refactor the ids in the sequence in
+    order to work with the metric.
+    :param all_sequences: list of lists of detections
+    :return: list of lists of detections with refactored ids
+    """
+    sequence_refactored = []
+    sequences_separated = separate_all_sequences_by_video(all_sequences)
+    for sequence in sequences_separated:
+        sequence = refactor_ids_in_sequence(sequence, gt)
+        for sequence_frame in sequence:
+            sequence_refactored.append(sequence_frame)
+
+    return sequence_refactored
 
 
 def reset_ids_sequence(sequence):
@@ -208,6 +258,7 @@ def reset_ids_sequence(sequence):
 
 def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
     """
+    todo: clean this function... it is a mess. do it better by sequences (based as in refactor_ids_sequences_v2)
     This function is used to compute the hota metric for all the sequences.
     :param all_tracking_predictions: list of lists of tracking predictions
     :param all_ground_truths: list of lists of ground truth
@@ -219,15 +270,23 @@ def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
     # variables that will be used to compute the metrics
     id_past_frame, tracking_predictions_sequence, ground_truths_sequence = reinitialise_hota_metric_variables()
 
+    # apaño por si usamos deepsort (copiamos lo del frame posterior)
+    for idx, tracking_predictions in enumerate(all_tracking_predictions):
+            if (idx < len(all_tracking_predictions) - 1) and \
+                    (not all_tracking_predictions[idx]['ids'] and not all_tracking_predictions[idx]['bboxes']):
+                all_tracking_predictions[idx]['ids'] = all_tracking_predictions[idx+1]['ids']
+                all_tracking_predictions[idx]['bboxes'] = all_tracking_predictions[idx+1]['bboxes']
+
     # refactor ids and bboxes (being coherent) of the ground truth and tracking predictions of the sequence
     all_tracking_predictions = refactor_ids_in_sequence(all_tracking_predictions, gt=False)
     all_ground_truths = refactor_ids_in_sequence(all_ground_truths, gt=True)
+    all_tracking_predictions_refactorised = refactor_ids_sequences_v2(all_tracking_predictions, gt=False)
 
-    for idx, (predictions, ground_truths) in enumerate(zip(all_tracking_predictions, all_ground_truths)):
+    for idx, (predictions, ground_truths) in enumerate(zip(all_tracking_predictions_refactorised, all_ground_truths)):
         if id_past_frame is None:
             id_past_frame = predictions['video_id']
 
-        elif id_past_frame != predictions['video_id'] or idx == len(all_tracking_predictions) - 1:
+        elif id_past_frame != predictions['video_id'] or idx == len(all_tracking_predictions_refactorised) - 1:
             # create other accumulator for computing hota metric
             hota_metric = HOTA()
 
@@ -277,13 +336,123 @@ def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker
     if os.path.exists(path_file):
         os.remove(path_file)
 
+    videos_and_frames, total_frames = compute_frames_for_partition(partition)
+
     with open(path_file, 'a') as f:
         writer = csv.writer(f)
         metrics.insert(0, 'video_id')
+        metrics.insert(1, 'nframes')
         metrics.append('hota')
         writer.writerow(metrics)
-        for (result, id_video), hota in zip(results, results_hota):
+        for (result, _), hota, video_name, nframes in zip(results, results_hota, videos_and_frames["video_id"], videos_and_frames["nframes"]):
             to_write = [value[0] for _, value in result.items()]
-            to_write.insert(0, id_video)
+            to_write.insert(0, video_name)
+            to_write.insert(1, nframes)
             to_write.append(hota['HOTA'][0])
             writer.writerow(to_write)
+
+    compute_mean_for_metrics(path_file, total_frames)
+    delete_duplicated_row(path_file)
+
+def compute_frames_for_partition(partition):
+    """
+    This function is used to compute the number of frames for each video in the yolo partition.
+    :param partition: the partition of the dataset e.g train, val, test
+    :return: a dictionary with the video_id and the number of frames for each video
+    """
+
+    # dict where all the number of frames for each video that are used in that specific partition will be stored.
+    videos_and_frames = {
+        'video_id': [],
+        'nframes': [],
+    }
+    # read the yolo db and get the number of frames for each video
+    path_to_db = os.path.join('../yolov5_+_tracking', 'datasets', 'Apple_Tracking_db_yolo', partition, 'images')
+
+    past_img = None
+    count = 0
+
+    for img in sorted(os.listdir(path_to_db)):
+        # get the name of the video
+        img = img.split('_')[:-2]
+        img = '_'.join(img)
+
+        if past_img is None:
+            past_img = img
+            count += 1
+        elif past_img == img:
+            count += 1
+        else:
+            videos_and_frames['video_id'].append(past_img)
+            videos_and_frames['nframes'].append(count)
+            past_img = img
+            count = 1
+
+    # last video
+    videos_and_frames['video_id'].append(past_img)
+    videos_and_frames['nframes'].append(count)
+
+    total_frames = sum(videos_and_frames['nframes'])
+
+    return videos_and_frames, total_frames
+
+
+def compute_mean_for_metrics(path_to_csv, total_frames):
+    """
+    This function modifies the .csv file to compute the mean of the metrics for each video taking the nframes as a
+    weight.
+    """
+    # this row will have the mean of the metrics for each video
+    row_to_append = []
+
+    # read the csv file
+    with open(path_to_csv, 'r') as f:
+        reader = csv.reader(f)
+        # get the headers
+        headers = next(reader)
+        # get the data
+        data = list(reader)
+        for row in data:
+            row_to_append.append(row[1:])
+        # transform the row_to_append to a numeric array
+        row_to_append = np.array(row_to_append, dtype=float)
+        # divide each element of row by the first element of the row (nframes) and ponderate the result by the total
+        nframes = row_to_append[:, 0]
+        for col in range(1, len(row_to_append[0])):
+            row_to_append[:, col] = row_to_append[:, col] * nframes / total_frames
+        # do the sum of the columns
+        row_to_append = np.sum(row_to_append, axis=0)
+        # convert the mean to a list
+        row_to_append = row_to_append.tolist()
+        # convert the list to string
+        row_to_append = [str(i) for i in row_to_append]
+        # add 'mean_video' to the fist element of the list
+        row_to_append.insert(0, 'mean_video (weighted by nframes in each video)')
+        # write the mean of the metrics for each video in the csv file
+        writer = csv.writer(open(path_to_csv, 'a'))
+        writer.writerow(row_to_append)
+
+
+def delete_duplicated_row(path_to_csv):
+    # read the csv file
+    with open(path_to_csv, 'r') as f:
+        reader = csv.reader(f)
+        # get the headers
+        headers = next(reader)
+        # delete the second element of the headers
+        headers.pop(1)
+        # get the data
+        data = list(reader)
+        # delete the second column of the data (as i've seen that it is duplicated)
+        for row in data:
+            row.pop(1)
+        # write the data in the csv file
+        writer = csv.writer(open(path_to_csv, 'w'))
+        writer.writerow(headers)
+        writer.writerows(data)
+
+
+
+
+
+

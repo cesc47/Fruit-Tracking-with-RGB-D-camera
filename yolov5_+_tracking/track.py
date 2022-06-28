@@ -399,6 +399,7 @@ def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='s
 
 
 if __name__ == '__main__':
+    # todo: fer un main on es puguin parsejar aquests arguments per a que quan es pengi al git quedi molt més sencer
     tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
                                                                 exp_name='yolov5x',
                                                                 tracker_type='bytetrack',

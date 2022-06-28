@@ -1,6 +1,7 @@
 import cv2
 import json
 import shutil
+import pickle
 
 import pandas as pd
 import scipy.io as sio
@@ -434,12 +435,194 @@ def extract_frames_zed_camera():
                         break
 
 
+def read_depth_or_infrared_file(videoname, file_name, show_img=False):
+    """
+    This function reads the depth or infrared file and returns the depth or infrared image. It also shows the image if
+    show_img is True.
+    :param videoname: name of the video
+    :param file_name: name of the file
+    :param show_img: if True, the image is shown
+    :return: the depth or infrared image
+    """
+    # path to the depth file
+    path_to_file = os.path.join('../data', 'Apple_Tracking_db', videoname, 'images', f'{file_name}.mat')
+
+    # read .mat file
+    mat = sio.loadmat(path_to_file)
+
+    # if the file_name ends with D => depth image, else I => IR image
+    if file_name.endswith('D'):
+        img = mat['transformed_depth'].astype(np.uint8)
+    elif file_name.endswith('I'):
+        img = mat['transformed_ir'].astype(np.uint8)
+    else:
+        raise ValueError('The file name must end with D or I')
+
+    if show_img:
+        # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
+        # apply colormap to the img
+        img = cv2.applyColorMap(img, cv2.COLORMAP_JET)
+        cv2.imshow('image', img)
+        cv2.waitKey(0)
+
+    return img
+
+
+def get_crops():
+    """
+    This function extracts the crops from the dataset. Returns a list of dicts with the crops where for every crop:
+    {
+    'filename': filename, represents the name of the file where the apple is,
+    'id': id, represents the id of the apple,
+    'bbox_tlbr': bbox_tlbr, represents the bounding box in the format [xtl, ytl, xbr, ybr] (img == (width, height))
+    }
+    :param: -
+    :return: list of dicts with the crops
+    """
+    # read in yolo datasets folder
+    path_db = os.path.join('../data', 'Apple_Tracking_db')
+    crops = []
+    for video_name in os.listdir(path_db):
+        if not (video_name.endswith('.txt') or video_name.endswith('.xlsx')):
+            path_to_frames = os.path.join(path_db, video_name, 'segmentation', 'labels_yolo_format+ids')
+            for file in os.listdir(path_to_frames):
+                # read the file
+                with open(os.path.join(path_to_frames, file), 'r') as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        # get the bounding box
+                        bbox = line.split()
+                        # get the id of the object
+                        id = int(bbox[1])
+                        # remove the .txt from the string
+                        file_name = file.split('.')[0]
+                        # remove the last two characters from the string (_C)
+                        file_name = file_name[:-2]
+                        # get the coordinates of the bounding box
+                        x, y, w, h = float(bbox[2]), float(bbox[3]), float(bbox[4]), float(bbox[5])
+                        x_min, y_min, x_max, y_max = convert_bbox_from_yolo_format(x, y, w, h)
+                        crop = {
+                            'file_name': file_name,
+                            'id': id,
+                            'bbox_tlbr': [x_min, y_min, x_max, y_max]
+                        }
+                        crops.append(crop)
+
+    return crops
+
+
+def generate_crops():
+    """
+    This function generates the crops from the dataset and store them in .png files in a folder called
+    crops_of_Apple_Tracking_db. The crops are from rgb, depth and infrared images for each apple in the dataset
+    """
+    crops = get_crops()
+
+    # save the crops in a pickle file in the folder 'crops', create it if it doesn't exist
+    path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db')
+    if not os.path.exists(path_to_crops):
+        os.makedirs(path_to_crops)
+
+    # get the max id of the crops
+    max_id = 0
+    for crop in crops:
+        if crop['id'] > max_id:
+            max_id = crop['id']
+
+    # create test and train folder
+    path_to_test = os.path.join(path_to_crops, 'test')
+    path_to_train = os.path.join(path_to_crops, 'train')
+    if not os.path.exists(path_to_test):
+        os.makedirs(path_to_test)
+    if not os.path.exists(path_to_train):
+        os.makedirs(path_to_train)
+
+    """
+    # create one folder for each id where the crops of that apple are stored
+    for i in range(max_id + 1):
+        # if i is multiple of 5, save the crops in the folder 'test'
+        if i % 5 == 0:
+            path_to_id = os.path.join(path_to_test, str(i))
+        else:
+            path_to_id = os.path.join(path_to_train, str(i))
+        if not os.path.exists(path_to_id):
+            os.makedirs(path_to_id)
+    """
+
+    print('generating crops in the folder: ', path_to_crops)
+    for crop in tqdm(crops):
+        # get the video folder name
+        video_folder_name = crop['file_name'].split('_')[:-2]
+        video_folder_name = '_'.join(video_folder_name)
+
+        # get the img path to files
+        img_rgb = cv2.imread(os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
+        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D')
+        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I')
+
+        # crop the images
+        img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+        # if i is multiple of 5, save the crops in the folder 'test'
+        if crop["id"] % 5 == 0:
+            # path_to_id = os.path.join(path_to_test, str(crop["id"]))
+            path_to_id = path_to_test
+        else:
+            # path_to_id = os.path.join(path_to_train, str(crop["id"]))
+            path_to_id = path_to_train
+
+        # save the image, save the depth and infrared image as a .png file
+        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_C.png')
+        cv2.imwrite(path_to_save, img_rgb)
+        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_D.png')
+        cv2.imwrite(path_to_save, img_d)
+        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_I.png')
+        cv2.imwrite(path_to_save, img_i)
+
+
+def generate_csv_from_crops():
+    """
+    This function generates a csv file with the crops from the dataset. The csv file is in the folder
+    crops_of_Apple_Tracking_db. The csv file has the following columns:
+    filename, id, x_min, y_min, x_max, y_max
+    """
+    crops = get_crops()
+    # create folder crops_info if it doesn't exist
+    path_to_crops_info = os.path.join('../data', 'crops_info')
+    if not os.path.exists(path_to_crops_info):
+        os.makedirs(path_to_crops_info)
+
+    # save the crops in a csv file in the folder 'crops', create it if it doesn't exist
+    path_to_csv = os.path.join(path_to_crops_info, 'crops_train.csv')
+    with open(path_to_csv, 'a') as f:
+        for crop in crops:
+            if crop['id'] % 5 != 0:
+                f.write(f'{crop["file_name"]}_{crop["id"]}_C.png,'
+                        f'{crop["file_name"]}_{crop["id"]}_D.png,'
+                        f'{crop["file_name"]}_{crop["id"]}_I.png,'
+                        f'{crop["id"]}\n')
+
+    path_to_csv = os.path.join(path_to_crops_info, 'crops_test.csv')
+    with open(path_to_csv, 'a') as f:
+        for crop in crops:
+            if crop['id'] % 5 == 0:
+                f.write(f'{crop["file_name"]}_{crop["id"]}_C.png,'
+                        f'{crop["file_name"]}_{crop["id"]}_D.png,'
+                        f'{crop["file_name"]}_{crop["id"]}_I.png,'
+                        f'{crop["id"]}\n')
+
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
     # rotate_images(path_to_images='210928_165030_k_r2_w_015_125_162', clockwise=False, test=True)
     # rotate_segmentation()
     # generate_yolo_labels()
-    create_custom_db_for_yolo(path='../data/Zed_dataset',
-                              path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
+    # create_custom_db_for_yolo(path='../data/Zed_dataset',
+    #    path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
     # generate_yolo_labels_and_ids()
     # extract_frames_zed_camera()
+    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162','210928_165030_k_r2_w_015_125_162_209_39_I', show_img=True)
+    generate_crops()
+    #generate_csv_from_crops()
+    print('finished')
