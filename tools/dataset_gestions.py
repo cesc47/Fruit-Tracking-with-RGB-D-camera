@@ -2,7 +2,9 @@ import cv2
 import json
 import shutil
 import pickle
+import random
 
+import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
@@ -435,7 +437,7 @@ def extract_frames_zed_camera():
                         break
 
 
-def read_depth_or_infrared_file(videoname, file_name, show_img=False):
+def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_img=False):
     """
     This function reads the depth or infrared file and returns the depth or infrared image. It also shows the image if
     show_img is True.
@@ -452,11 +454,22 @@ def read_depth_or_infrared_file(videoname, file_name, show_img=False):
 
     # if the file_name ends with D => depth image, else I => IR image
     if file_name.endswith('D'):
-        img = mat['transformed_depth'].astype(np.uint8)
+        img = mat['transformed_depth'].astype(np.float32)
     elif file_name.endswith('I'):
-        img = mat['transformed_ir'].astype(np.uint8)
+        img = mat['transformed_ir'].astype(np.float32)
     else:
         raise ValueError('The file name must end with D or I')
+
+    if normalization is not None:
+        # divide the image by the normalization factor, as type float
+
+        img = img / normalization
+
+
+    # divide all img values by the max value of the img to get the values between 0 and 255
+    #img = img / img.max()
+    #img = img * 255
+    #img = img.astype(np.uint8)
 
     if show_img:
         # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
@@ -466,6 +479,42 @@ def read_depth_or_infrared_file(videoname, file_name, show_img=False):
         cv2.waitKey(0)
 
     return img
+
+
+def compute_max_value_depth_and_infrared_crops(crops):
+    """
+    This function computes the max value of the depth and infrared crops.
+    """
+
+    max_d = 0
+    max_i = 0
+
+    print('-------------------------------------')
+    print('Computing max value of the depth and infrared crops')
+    print('-------------------------------------')
+
+    for crop in tqdm(crops):
+        # get the video folder name
+        video_folder_name = crop['file_name'].split('_')[:-2]
+        video_folder_name = '_'.join(video_folder_name)
+
+        # get the img path to files
+        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D')
+        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I')
+
+        # crop the images
+        img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+        if img_d.max() > max_d:
+            max_d = img_d.max()
+        if img_i.max() > max_i:
+            max_i = img_i.max()
+
+    print(f'Max value of the depth: {max_d}')
+    print(f'Max value of the infrared: {max_i}')
+
+    return max_d, max_i
 
 
 def get_crops():
@@ -516,7 +565,10 @@ def generate_crops():
     This function generates the crops from the dataset and store them in .png files in a folder called
     crops_of_Apple_Tracking_db. The crops are from rgb, depth and infrared images for each apple in the dataset
     """
+    # get max value of depth and infrared crops
     crops = get_crops()
+
+    max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
 
     # save the crops in a pickle file in the folder 'crops', create it if it doesn't exist
     path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db')
@@ -537,18 +589,6 @@ def generate_crops():
     if not os.path.exists(path_to_train):
         os.makedirs(path_to_train)
 
-    """
-    # create one folder for each id where the crops of that apple are stored
-    for i in range(max_id + 1):
-        # if i is multiple of 5, save the crops in the folder 'test'
-        if i % 5 == 0:
-            path_to_id = os.path.join(path_to_test, str(i))
-        else:
-            path_to_id = os.path.join(path_to_train, str(i))
-        if not os.path.exists(path_to_id):
-            os.makedirs(path_to_id)
-    """
-
     print('generating crops in the folder: ', path_to_crops)
     for crop in tqdm(crops):
         # get the video folder name
@@ -557,8 +597,8 @@ def generate_crops():
 
         # get the img path to files
         img_rgb = cv2.imread(os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
-        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D')
-        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I')
+        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=max_d)
+        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=max_i)
 
         # crop the images
         img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
@@ -613,6 +653,123 @@ def generate_csv_from_crops():
                         f'{crop["file_name"]}_{crop["id"]}_I.png,'
                         f'{crop["id"]}\n')
 
+
+def generate_crops_numpy():
+    """
+    This function generates a numpy file with the crops from the dataset. The numpy file is in the folder
+    crops_of_Apple_Tracking_db_numpy.
+    """
+
+    crops = get_crops()
+
+    # get max value of depth and infrared crops
+    # max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
+
+    # save the crops in a pickle file in the folder 'crops', create it if it doesn't exist
+    path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db_numpy')
+    if not os.path.exists(path_to_crops):
+        os.makedirs(path_to_crops)
+
+    # get the max id of the crops
+    max_id = 0
+    for crop in crops:
+        if crop['id'] > max_id:
+            max_id = crop['id']
+
+    # create list of lists empty of the size of the max id
+    crops_list = [[] for i in range(max_id + 1)]
+    for crop in crops:
+        crops_list[crop['id']].append(crop)
+
+    print('generating crops of the images...')
+    crops_pickles = [[] for i in range(max_id + 1)]
+    for idx, crops in tqdm(enumerate(crops_list)):
+        if len(crops) == 0:
+            continue
+        for crop in crops:
+            # get the video folder name
+            video_folder_name = crop['file_name'].split('_')[:-2]
+            video_folder_name = '_'.join(video_folder_name)
+
+            # get the img path to files
+            img_rgb = cv2.imread(
+                os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
+            # normalization numbers computed with compute_max_value_depth_and_infrared_crops(crops)
+            img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
+            img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
+
+            # crop the images
+            img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+            img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+            img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+            img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
+            crops_pickles[crop['id']].append(img)
+
+    train_crops = [[] for i in range(max_id + 1)]
+    test_crops = [[] for i in range(max_id + 1)]
+
+    print('distributing the crops in train and test randomly with a 80% prob in train and then saving them...')
+    for idx, crops in tqdm(enumerate(crops_pickles)):
+        if len(crops) != 0:
+            # select randomly the 80% of the elements in a list
+            train_crops[idx] = random.sample(crops, int(len(crops) * 0.8))
+            # get the indexes of the arrays selected
+            indexes = [i for i in range(len(crops)) if i not in [j for j in range(int(len(crops) * 0.8))]]
+            # select the remaining 20% of the elements in a list
+            test_crops[idx] = [crops[i] for i in indexes]
+
+    # save the crops in a pickle file, named train and test respectively
+    path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    with open(path_to_train_crops, 'wb') as f:
+        pickle.dump(train_crops, f)
+    path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    with open(path_to_test_crops, 'wb') as f:
+        pickle.dump(test_crops, f)
+
+    #redistribute_crops_numpy()
+
+
+def redistribute_crops_numpy():
+    """
+    This function redistributes the crops in the train and test numpy files in the folder
+    crops_of_Apple_Tracking_db_numpy. Basically puts all the crops in a list with a id as index and the crops as value.
+    """
+    path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db_numpy')
+
+    if not os.path.exists(path_to_crops):
+        print('the folder crops_of_Apple_Tracking_db_numpy does not exist')
+        generate_crops()
+
+    # load the crops in a pickle file
+    path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    with open(path_to_train_crops, 'rb') as f:
+        train_crops = pickle.load(f)
+    path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    with open(path_to_test_crops, 'rb') as f:
+        test_crops = pickle.load(f)
+
+    # for each item in the list of lists, assign the index of the list and the item, as a tuple
+    train = []
+    for idx, crops in enumerate(train_crops):
+        for crop in crops:
+            train.append((crop, idx))
+    test = []
+    for idx, crops in enumerate(test_crops):
+        for crop in crops:
+            test.append((crop, idx))
+
+    # delete the old pickle file
+    os.remove(path_to_train_crops)
+    os.remove(path_to_test_crops)
+
+    # save the new pickle file
+    with open(path_to_train_crops, 'wb') as f:
+        pickle.dump(train, f)
+    with open(path_to_test_crops, 'wb') as f:
+        pickle.dump(test, f)
+
+
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
     # rotate_images(path_to_images='210928_165030_k_r2_w_015_125_162', clockwise=False, test=True)
@@ -622,7 +779,11 @@ if __name__ == "__main__":
     #    path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
     # generate_yolo_labels_and_ids()
     # extract_frames_zed_camera()
-    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162','210928_165030_k_r2_w_015_125_162_209_39_I', show_img=True)
-    generate_crops()
-    #generate_csv_from_crops()
+    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162','210928_165030_k_r2_w_015_125_162_209_50_D',
+    #                              show_img=True)
+    # generate_crops()
+    #generate_crops_numpy()
+    # generate_csv_from_crops()
+    # compute_max_value_depth_and_infrared_crops()
+    # redistribute_crops_numpy()
     print('finished')

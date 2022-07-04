@@ -416,6 +416,8 @@ def compute_mean_for_metrics(path_to_csv, total_frames):
             row_to_append.append(row[1:])
         # transform the row_to_append to a numeric array
         row_to_append = np.array(row_to_append, dtype=float)
+        # compute the mean of the metrics for each video
+        mean_videos = row_to_append.mean(axis=0)
         # divide each element of row by the first element of the row (nframes) and ponderate the result by the total
         nframes = row_to_append[:, 0]
         for col in range(1, len(row_to_append[0])):
@@ -424,13 +426,17 @@ def compute_mean_for_metrics(path_to_csv, total_frames):
         row_to_append = np.sum(row_to_append, axis=0)
         # convert the mean to a list
         row_to_append = row_to_append.tolist()
+        mean_videos = mean_videos.tolist()
         # convert the list to string
         row_to_append = [str(i) for i in row_to_append]
+        mean_videos = [str(i) for i in mean_videos]
         # add 'mean_video' to the fist element of the list
         row_to_append.insert(0, 'mean_video (weighted by nframes in each video)')
+        mean_videos.insert(0, 'mean_video (without weight => division by number of videos)')
         # write the mean of the metrics for each video in the csv file
         writer = csv.writer(open(path_to_csv, 'a'))
         writer.writerow(row_to_append)
+        writer.writerow(mean_videos)
 
 
 def delete_duplicated_row(path_to_csv):
