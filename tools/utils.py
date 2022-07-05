@@ -219,6 +219,24 @@ def augment_size_of_bboxes(detections, size_to_augment):
     return detections_augmented
 
 
+def search_in_dataset_an_image_from_yolo_dataset(framename):
+    """
+    Search in the dataset an image from the yolo dataset. gets the framename and returns the path of the image.
+    :param framename: the framename
+    :return: the path of the image
+    """
+    for video_name in os.listdir(GLOBAL_PATH_DB):
+        if not (video_name.endswith('.txt') or video_name.endswith('.xlsx')):
+            path_video = os.path.join(GLOBAL_PATH_DB, video_name, 'images')
+            for image_name in os.listdir(path_video):
+                # if strings are equal, return the path of the image
+                if image_name == framename + '.png':
+                    path_rgb = os.path.join(path_video, image_name)
+                    # remove the last 5 characters of the path to get the path of the image (_C.png)
+                    path = path_rgb[:-5]
+
+                    return path
+
 if __name__ == '__main__':
     compute_sizes_all_gts()
 

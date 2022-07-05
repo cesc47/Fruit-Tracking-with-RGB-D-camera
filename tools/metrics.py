@@ -6,7 +6,7 @@ import numpy as np
 
 from tools.utils import compute_centroids_bboxes_tlbr
 from tools.TrackEval.trackeval.metrics import HOTA
-
+from tools.visualization import visualize_tracking_results
 
 def compute_distance_matrix_frame(gt_centers, det_centers, max_d2=2000):
     """
@@ -314,7 +314,7 @@ def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
     return all_results
 
 
-def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker_type, partition, metrics):
+def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker_type, partition, metrics, reid):
     """
     Save the tracking results in a csv file. The tracking results are saved in the folder 'results_tracking'
     :param results: tracking results to save (motmetrics)
@@ -324,13 +324,16 @@ def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker
     :param tracker_type: type of the tracker
     :param partition: partition of the dataset
     :param metrics: metrics of the tracking
+    :param reid: if we use reid or not (string)
     """
     # create new folder for the results of the tracking if it does not exist
     if not os.path.exists(os.path.join(os.getcwd(), 'results_tracking')):
         os.mkdir(os.path.join(os.getcwd(), 'results_tracking'))
 
     # save the results in a csv file
-    path_file = os.path.join('results_tracking', f'{dataset_name}_{exp_name}_{tracker_type}_{partition}.csv')
+    if reid is None:
+        reid = 'no_reid'
+    path_file = os.path.join('results_tracking', f'{dataset_name}_{exp_name}_{tracker_type}_{partition}_{reid}.csv')
 
     # if file already exists, delete it
     if os.path.exists(path_file):
@@ -456,6 +459,38 @@ def delete_duplicated_row(path_to_csv):
         writer = csv.writer(open(path_to_csv, 'w'))
         writer.writerow(headers)
         writer.writerows(data)
+
+
+def save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
+                       partition, metrics, visualize_results, all_tracking_predictions, ground_truths, reid):
+    """
+    Save the results of the tracking and visualize them. If save_results is True, the results are saved in a .csv file.
+    :param save_results: save the results of the tracking (boolean)
+    :param all_tracking_results: the results of the tracking (metrics)
+    :param hota_metric_results: the results of the tracking (metrics)
+    :param dataset_name: the name of the dataset
+    :param exp_name: the name of the experiment
+    :param tracker_type: the tracker type (sort, deepsort or bytetrack)
+    :param partition: the partition of the dataset (train, test or val)
+    :param metrics: the metrics to save (list of strings)
+    :param visualize_results: visualize the results of the tracking (boolean)
+    :param all_tracking_predictions: the predictions of the tracker (list of lists)
+    :param ground_truths: the ground truths of the dataset (list of lists)
+    :param reid: the reid (string or None)
+    """
+    # if save_results is True, then we save the results of the tracker and the detections
+    if save_results:
+        print('saving tracking results ...')
+        save_tracking_results(all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
+                              partition, metrics, reid)
+
+    # if visualize_results is True, then we visualize the results of the tracker and the detections
+    if visualize_results and save_results:
+        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name, plot_gts=False,
+                                   plot_preds=True, save_video=True, path_to_save_video='results_tracking')
+
+    elif visualize_results and not save_results:
+        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name)
 
 
 

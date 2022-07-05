@@ -137,7 +137,7 @@ class STrack(BaseTrack):
 
 
 class BYTETracker(object):
-    def __init__(self):
+    def __init__(self, reid=None):
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]
         self.removed_stracks = []  # type: list[STrack]
@@ -148,6 +148,7 @@ class BYTETracker(object):
         self.det_thresh = self.track_thresh + 0.1
         self.kalman_filter = KalmanFilter()
         self.max_time_lost = 30  # the frames for keep lost tracks
+        self.reid = reid
 
     def update(self, output_results, img_info, img_size):
         self.frame_id += 1
@@ -197,8 +198,13 @@ class BYTETracker(object):
         strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
         # Predict the current location with KF
         STrack.multi_predict(strack_pool)
-        #dists = matching.embedding_distance(strack_pool, detections)
-        dists = matching.iou_distance(strack_pool, detections)
+
+        # modification - cesc => reid net. First association w/ reid if reid is True
+        if self.reid is not None:
+            dists = matching.embedding_distance(strack_pool, detections)
+        else:
+            dists = matching.iou_distance(strack_pool, detections)
+
         if not self.mot20:
             dists = matching.fuse_score(dists, detections)
         matches, u_track, u_detection = matching.linear_assignment(dists, thresh=self.match_thresh)

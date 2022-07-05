@@ -15,7 +15,7 @@ import torch.optim as optim
 from os import path
 from torch.optim import lr_scheduler
 
-from reid_net import ReidAppleNet, ReidAppleNetTriplet
+from reid_net import ReidAppleNet, ReidAppleNetTriplet, load_resnet_modified, ReidAppleNetTripletResNet
 from datasets import AppleCrops, AppleCropsTriplet
 from train import fit, fit_triplet
 
@@ -29,11 +29,11 @@ def main():
     wandb.init(project="reid_training", entity="cesc47")
 
     # type of network: reid or reid_triplet
-    network = 'reid_triplet'
+    network = 'reid_resnet_triplet'
 
     # raise error if network is not reid or reid_triplet
-    if network not in ['reid', 'reid_triplet']:
-        raise ValueError('network must be either reid or reid_triplet')
+    if network not in ['reid', 'reid_triplet', 'reid_resnet', 'reid_resnet_triplet']:
+        raise ValueError('network must be either reid or reid_triplet or reid_resnet')
 
     # cuda management
     DEVICE = 'cuda'
@@ -54,6 +54,10 @@ def main():
     # id of the model
     if network == 'reid':
         model_id = 'reid_applenet'
+    elif network == 'reid_resnet':
+        model_id = 'reid_applenet_resnet'
+    elif network == 'reid_resnet_triplet':
+        model_id = 'reid_applenet_resnet_triplet'
     else:
         model_id = 'reid_applenet_triplet'
 
@@ -73,7 +77,7 @@ def main():
     ])
 
     # instantiation of the train and test classes
-    if network == 'reid':
+    if network == 'reid' or network == 'reid_resnet':
         train_db = AppleCrops(root_path=ROOT_PATH,
                               split='train',
                               transform=transformations)
@@ -89,21 +93,25 @@ def main():
                                     transform=transformations)
 
     # creation of the dataloaders
-    batch_size = 1024
+    batch_size = 256
 
     train_loader = DataLoader(train_db,
                               batch_size=batch_size,
                               shuffle=True,
-                              num_workers=4)
+                              num_workers=0)
 
     test_loader = DataLoader(test_db,
                              batch_size=batch_size,
                              shuffle=False,
-                             num_workers=4)
+                             num_workers=0)
 
     # instantiation of our network
     if network == 'reid':
         model = ReidAppleNet()
+    elif network == 'reid_resnet':
+        model = load_resnet_modified()
+    elif network == 'reid_resnet_triplet':
+        model = ReidAppleNetTripletResNet()
     else:
         model = ReidAppleNetTriplet()
 
@@ -117,7 +125,7 @@ def main():
         model.cuda()
 
     # HYPERPARAMS - the hyperparameters of the network: learning rate, number of epochs, optimizer, loss...
-    epochs = 30
+    epochs = 20
     lr = 3e-4
     log_interval = 10
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -129,7 +137,7 @@ def main():
         "batch_size": batch_size
     }
 
-    if network == 'reid':
+    if network == 'reid' or network == 'reid_resnet':
         loss_fn = nn.CrossEntropyLoss()
         scheduler = lr_scheduler.StepLR(optimizer, 8, gamma=0.1, last_epoch=-1)
 
@@ -146,7 +154,7 @@ def main():
         )
         accuracy_calculator = AccuracyCalculator(include=("precision_at_1",), k=1)
 
-        fit_triplet(epochs, model, loss_fn, mining_func, DEVICE, train_loader, optimizer, accuracy_calculator,
+        fit_triplet(epochs, model, loss_fn, mining_func, DEVICE, train_loader, optimizer, model_id, accuracy_calculator,
                     train_db, test_db)
 
 

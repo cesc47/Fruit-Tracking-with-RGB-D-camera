@@ -105,21 +105,140 @@ class Net(nn.Module):
         return x
 
 
+class BasicBlock2(nn.Module):
+    def __init__(self, c_in, c_out, is_downsample=False):
+        super(BasicBlock2, self).__init__()
+        self.is_downsample = is_downsample
+        if is_downsample:
+            self.conv1 = nn.Conv2d(
+                c_in, c_out, 3, stride=2, padding=1, bias=False)
+        else:
+            self.conv1 = nn.Conv2d(
+                c_in, c_out, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c_out)
+        self.relu = nn.ReLU(True)
+        self.conv2 = nn.Conv2d(c_out, c_out, 3, stride=1,
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(c_out)
+        if is_downsample:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(c_in, c_out, 1, stride=2, bias=False),
+                nn.BatchNorm2d(c_out)
+            )
+        elif c_in != c_out:
+            self.downsample = nn.Sequential(
+                nn.Conv2d(c_in, c_out, 1, stride=1, bias=False),
+                nn.BatchNorm2d(c_out)
+            )
+            self.is_downsample = True
+
+    def forward(self, x):
+        y = self.conv1(x)
+        y = self.bn1(y)
+        y = self.relu(y)
+        y = self.conv2(y)
+        y = self.bn2(y)
+        if self.is_downsample:
+            x = self.downsample(x)
+        return F.relu(x.add(y), True)
+
+
+def make_layers2(c_in, c_out, repeat_times, is_downsample=False):
+    blocks = []
+    for i in range(repeat_times):
+        if i == 0:
+            blocks += [BasicBlock2(c_in, c_out, is_downsample=is_downsample), ]
+        else:
+            blocks += [BasicBlock2(c_out, c_out), ]
+    return nn.Sequential(*blocks)
+
+
+class ReidAppleNet(nn.Module):
+    """
+    Implementation of a custom NN to extract the features of the images (re-id network)
+    """
+    def __init__(self, num_classes=1414, reid=False):
+        super(ReidAppleNet, self).__init__()
+        # 3 128 64
+        self.conv = nn.Sequential(
+            nn.Conv2d(5, 64, 3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            # nn.Conv2d(32,32,3,stride=1,padding=1),
+            # nn.BatchNorm2d(32),
+            # nn.ReLU(inplace=True),
+            nn.MaxPool2d(3, 2, padding=1),
+        )
+        # 32 64 32
+        self.layer1 = make_layers2(64, 64, 2, False)
+        # 32 64 32
+        self.layer2 = make_layers2(64, 128, 2, True)
+        # 64 32 16
+        self.layer3 = make_layers2(128, 256, 2, True)
+        # 128 16 8
+        self.layer4 = make_layers2(256, 1414, 2, True)
+        #self.layer4 = make_layers(256, 512, 2, True)
+        # 256 8 4
+        # todo: aquí se puede mirar de dejar un vector mas grande
+        self.avgpool = nn.AvgPool2d((2, 2), 1)
+        # 256 1 1
+        self.reid = reid
+        self.classifier = nn.Sequential(
+            nn.Linear(1414, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(256, num_classes),
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        # B x 128
+        if self.reid:
+            x = x.div(x.norm(p=2, dim=1, keepdim=True))
+            return x
+        # classifier
+        x = self.classifier(x)
+        return x
+
+
 class Extractor(object):
     def __init__(self, model_path, use_cuda=True):
-        self.net = Net(reid=True)
-        self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
-        state_dict = torch.load(model_path, map_location=torch.device(self.device))[
-            'net_dict']
-        self.net.load_state_dict(state_dict)
-        logger = logging.getLogger("root.tracker")
-        logger.info("Loading weights from {}... Done!".format(model_path))
-        self.net.to(self.device)
-        self.size = (64, 128)
-        self.norm = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
+        # default network
+        if not model_path.endswith('.pth'):
+            self.net = Net(reid=True)
+            self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
+            state_dict = torch.load(model_path, map_location=torch.device(self.device))[
+                'net_dict']
+            self.net.load_state_dict(state_dict)
+            logger = logging.getLogger("root.tracker")
+            logger.info("Loading weights from {}... Done!".format(model_path))
+            self.net.to(self.device)
+            self.size = (64, 128)
+            self.norm = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ])
+
+        # reid network w/ 5 channels
+        else:
+            self.net = ReidAppleNet()
+            self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
+            self.net.load_state_dict(torch.load(model_path), strict=False)
+            self.net.to(self.device)
+            self.size = (32, 32)
+            self.norm = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
+                    std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
+            ])
 
     def _preprocess(self, im_crops):
         """

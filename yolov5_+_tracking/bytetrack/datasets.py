@@ -11,6 +11,7 @@ from tqdm import tqdm
 import pickle
 from torch.utils.data import Dataset
 import numpy as np
+import torch
 
 # create custom dataset pytorch, that loads the images from the folder. images are rgb, d and I
 class AppleCrops(Dataset):
@@ -146,11 +147,24 @@ class AppleCropsTriplet(Dataset):
         anchor_img, label_anchor = self.files[idx]
         # select an image in files that is not the anchor image but has the same label
         while True:
+            """
+            # acotate the search to make it faster!
+            search_idx_max = idx + 100
+            if search_idx_max >= len(self.files):
+                search_idx_max = len(self.files) - 1
+            search_idx_min = idx - 100
+            if search_idx_min < 0:
+                search_idx_min = 0
+
+            idx_img = np.random.randint(search_idx_min, search_idx_max)
+            """
             idx_img = np.random.randint(0, len(self.files))
-            if idx_img != idx:
-                positive_img, label_pos = self.files[idx_img]
-                if label_pos == label_anchor:
-                    break
+            # if the apple has only one crop => problem
+            # if idx_img != idx:
+            positive_img, label_pos = self.files[idx_img]
+            if label_pos == label_anchor:
+                break
+
         # select an image in files that is not of the same label as the anchor and the positive image
         while True:
             idx_img = np.random.randint(0, len(self.files))
@@ -165,9 +179,8 @@ class AppleCropsTriplet(Dataset):
             negative_img = self.transform(negative_img)
 
         triplet_imgs = anchor_img, positive_img, negative_img
-        triplet_labels = label_anchor, label_anchor, label_neg
 
-        return triplet_imgs, triplet_labels
+        return triplet_imgs, label_anchor
 
 
 if __name__ == "__main__":

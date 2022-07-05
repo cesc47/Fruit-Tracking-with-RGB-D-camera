@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 import cv2
+import os
+import scipy.io as sio
 
 from .reid_model import Extractor
 from .kalman_filter import KalmanFilter
@@ -8,6 +10,44 @@ from .linear_assignment import gate_cost_matrix, matching_cascade, min_cost_matc
 from .iou_matching import iou_cost
 from .detection import Detection
 from .track import Track
+
+
+def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_img=False):
+    """
+    This function reads the depth or infrared file and returns the depth or infrared image. It also shows the image if
+    show_img is True.
+    :param videoname: name of the video
+    :param file_name: name of the file
+    :param show_img: if True, the image is shown
+    :return: the depth or infrared image
+    """
+    # path to the depth file
+    path_to_file = os.path.join('../data', 'Apple_Tracking_db', videoname, 'images', f'{file_name}.mat')
+
+    # read .mat file
+    mat = sio.loadmat(path_to_file)
+
+    # if the file_name ends with D => depth image, else I => IR image
+    if file_name.endswith('D'):
+        img = mat['transformed_depth'].astype(np.float32)
+    elif file_name.endswith('I'):
+        img = mat['transformed_ir'].astype(np.float32)
+    else:
+        raise ValueError('The file name must end with D or I')
+
+    if normalization is not None:
+        # divide the image by the normalization factor, as type float
+
+        img = img / normalization
+
+    if show_img:
+        # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
+        # apply colormap to the img
+        img = cv2.applyColorMap(img, cv2.COLORMAP_JET)
+        cv2.imshow('image', img)
+        cv2.waitKey(0)
+
+    return img
 
 
 def _cosine_distance(a, b, data_is_normalized=False):
@@ -165,20 +205,30 @@ class DeepSort(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    # def update(self, output_results, img_info, img_size, img_file_name):
     def update(self, output_results, img_file_name):
-        # img_file_name = os.path.join(get_yolox_datadir(), 'mot', 'train', img_file_name)
-        ori_img = cv2.imread(img_file_name)
+        # if endswith .png means reid is default
+        if img_file_name.endswith('.png'):
+            ori_img = cv2.imread(img_file_name)
+        # if endswith .png means reid is custom => 5 channels
+        else:
+            ori_img = cv2.imread(img_file_name + 'C.png')
+            # split string in /
+            img_file_name = img_file_name.split('/')
+            videoname = img_file_name[3]
+            filename = img_file_name[-1]
+            ori_img_d = read_depth_or_infrared_file(videoname, filename+'D', normalization=12222)
+            ori_img_i = read_depth_or_infrared_file(videoname, filename+'I', normalization=13915)
+
+            img = np.array((ori_img[:, :, 0], ori_img[:, :, 1], ori_img[:, :, 2], ori_img_d * 255, ori_img_i * 255))
+
+            # transpose channels (a, b, c) => (b, c, a). in img we have the same as before but now 5 channels
+            ori_img = img.transpose(1, 2, 0)
+
         self.height, self.width = ori_img.shape[:2]
+
         # post process detections
-        # output_results = output_results.cpu().numpy()
-        # confidences = output_results[:, 4] * output_results[:, 5]
         confidences = output_results[:, 4]
         bboxes = output_results[:, :4]  # x1y1x2y2
-        # modifico esto - cesc
-        # img_h, img_w = img_info[0], img_info[1]
-        # scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
-        # bboxes /= scale
         bbox_xyxy = bboxes
         bbox_tlwh = self._xyxy_to_tlwh_array(bbox_xyxy)
         remain_inds = confidences > self.min_confidence
@@ -190,10 +240,6 @@ class DeepSort(object):
         detections = [Detection(bbox_tlwh[i], conf, features[i]) for i, conf in enumerate(
             confidences) if conf > self.min_confidence]
         classes = np.zeros((len(detections), ))
-
-        # run on non-maximum supression
-        boxes = np.array([d.tlwh for d in detections])
-        scores = np.array([d.confidence for d in detections])
 
         # update tracker
         self.tracker.predict()

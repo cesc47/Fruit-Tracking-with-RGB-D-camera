@@ -565,9 +565,9 @@ def generate_crops():
     This function generates the crops from the dataset and store them in .png files in a folder called
     crops_of_Apple_Tracking_db. The crops are from rgb, depth and infrared images for each apple in the dataset
     """
-    # get max value of depth and infrared crops
     crops = get_crops()
 
+    # get max value of depth and infrared crops
     max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
 
     # save the crops in a pickle file in the folder 'crops', create it if it doesn't exist
@@ -770,6 +770,67 @@ def redistribute_crops_numpy():
         pickle.dump(test, f)
 
 
+def get_info_crops():
+    """
+    This function gets the information of the crops in the folder crops_of_Apple_Tracking_db_numpy. It gets the
+    percentage of zeros in the depth and infrared images (images that are all 0!)
+    """
+
+    crops = get_crops()
+
+    zeros_in_depth = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+    zeros_in_infrared = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+    total_imgs = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+
+    information = {
+        'zeros_in_depth': zeros_in_depth,
+        'zeros_in_infrared': zeros_in_infrared,
+        'total_imgs': total_imgs,
+    }
+
+    print('getting information about the crops...')
+    for crop in tqdm(crops):
+        video_folder_name = crop['file_name'].split('_')[:-2]
+        video_folder_name = '_'.join(video_folder_name)
+
+        # get the distance from the camera
+        distance = video_folder_name.split('_')[-2]
+
+        # get the img path to files
+        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D')
+        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I')
+
+        # crop the images
+        img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+        # if img_d contains all zeros
+        if np.sum(img_d) == 0:
+            zeros_in_depth[distance] += 1
+        # if img_i contains all zeros
+        if np.sum(img_i) == 0:
+            zeros_in_infrared[distance] += 1
+        information['total_imgs'][distance] += 1
+
+    print(f'zeros in depth 125 (%): {information["zeros_in_depth"]["125"] / information["total_imgs"]["125"] * 100}')
+    print(f'zeros in depth 175 (%): {information["zeros_in_depth"]["175"] / information["total_imgs"]["175"] * 100}')
+    print(f'zeros in depth 225 (%): {information["zeros_in_depth"]["225"] / information["total_imgs"]["225"] * 100}')
+    print(f'zeros in infrared 125 (%): {information["zeros_in_infrared"]["125"] / information["total_imgs"]["125"] * 100}')
+    print(f'zeros in infrared 175 (%): {information["zeros_in_infrared"]["175"] / information["total_imgs"]["175"] * 100}')
+    print(f'zeros in infrared 225 (%): {information["zeros_in_infrared"]["225"] / information["total_imgs"]["225"] * 100}')
+
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
     # rotate_images(path_to_images='210928_165030_k_r2_w_015_125_162', clockwise=False, test=True)
@@ -786,4 +847,5 @@ if __name__ == "__main__":
     # generate_csv_from_crops()
     # compute_max_value_depth_and_infrared_crops()
     # redistribute_crops_numpy()
+    get_info_crops()
     print('finished')

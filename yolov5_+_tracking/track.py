@@ -5,13 +5,12 @@ from bytetrack import byte_tracker
 from deepsort import deepsort
 
 from tools.utils import *
-from tools.visualization import visualize_tracking_results
-from tools.metrics import tracking_evaluation_results, tracking_evaluation_update_params, save_tracking_results, \
-    evaluate_sequences_hota_metric
+from tools.metrics import tracking_evaluation_results, tracking_evaluation_update_params, \
+    evaluate_sequences_hota_metric, save_and_visualize
 
 
 def track_detections_frame(predictions, detections, tracker, tracker_type, anterior_video_id, frame_name,
-                           dataset_name, partition, img_size=(1080, 1920)):
+                           reid=None, img_size=(1080, 1920)):
     """
     Performs the tracking of the detections in a frame.
     params:
@@ -48,9 +47,13 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
             trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
 
         elif tracker_type == 'deepsort':
-            path_to_img = os.path.join('datasets', dataset_name, partition, 'images', f'{frame_name}.png')
-            trackers = tracker.update(np.array(detections), path_to_img)
-
+            path = search_in_dataset_an_image_from_yolo_dataset(frame_name)
+            # use default network deepsort
+            if reid is None:
+                trackers = tracker.update(np.array(detections), img_file_name=path+'C.png')
+            # use reid network deepsort: custom network created by me
+            else:
+                trackers = tracker.update(np.array(detections), img_file_name=path)
         else:
             raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
 
@@ -172,24 +175,30 @@ def read_from_yolo(path, filter_detections=True, augment_bbox_size=5, ground_tru
     return all_results, videonames
 
 
-def create_tracker(tracker_type):
+def create_tracker(tracker_type, reid=None):
     """
     Create a tracker based on the tracker_type. The tracker_type can be either 'sort', 'deepsort' or 'bytetrack'. The
     tracker_type 'sort' is based on the SORT tracker. The tracker_type 'deepsort' is based on the DeepSORT tracker. The
     tracker_type 'bytetrack' is based on the Bytetrack tracker.
     :param tracker_type: the tracker type
+    :param reid: use reid network to track. If None, no reid network is used or use reid by default in deepsort case.
     :return: the tracker
     """
-    # todo: generate reid network in bytetrack and deepsort: trained w/ rgb & rgb+d+i
     # create the tracker
-    if tracker_type == 'sort':
+    if tracker_type == 'sort' and reid is None:
         tracker = sort.Sort()
 
+    elif tracker_type == 'sort' and reid is not None:
+        raise ValueError('Sort tracker does not support reid')
+
     elif tracker_type == 'bytetrack':
-        tracker = byte_tracker.BYTETracker()
+        tracker = byte_tracker.BYTETracker(reid=reid)
 
     elif tracker_type == 'deepsort':
-        tracker = deepsort.DeepSort(model_path=os.path.join('deepsort', 'checkpoints', 'ckpt.t7'))
+        if reid is None:
+            tracker = deepsort.DeepSort(model_path=os.path.join('deepsort', 'checkpoints', 'ckpt.t7'))
+        elif reid is not None:
+            tracker = deepsort.DeepSort(model_path=os.path.join('bytetrack', 'models', f'{reid}.pth'))
 
     else:
         raise AssertionError('tracker_type should be named: sort, bytetrack or deepsort')
@@ -200,13 +209,14 @@ def create_tracker(tracker_type):
     return tracker, accumulator
 
 
-def reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_id):
+def reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_id, reid=None):
     """
     Reset the tracker and the accumulator.
     :param accumulator: the accumulator to reset (show metrics of tracking)
     :param tracker_type: the tracker type (sort, deepsort or bytetrack)
     :param tracker_evaluation: the tracker evaluation (show metrics of tracking => boolean)
     :param anterior_video_id: the id of the previous video
+    :param reid: use reid network to track. If None, no reid network is used or use reid by default in deepsort case.
     """
     results = None
 
@@ -214,23 +224,18 @@ def reset_tracker(accumulator, tracker_type, tracker_evaluation, anterior_video_
         # compute the metrics (results)
         results, _ = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
 
-    tracker, accumulator = create_tracker(tracker_type)
+    tracker, accumulator = create_tracker(tracker_type, reid=reid)
 
     return tracker, accumulator, results
 
 
-def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='test', tracker_evaluation=True,
-                       visualize_results=False, save_results=False):
+def initialise_data(partition, dataset_name, exp_name):
     """
-    Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
-    ground truth the labels from supervisely (.json) but the labels from yolo (.txt)
-    :param dataset_name: name of the dataset
-    :param exp_name: name of the experiment (in yolo folder)
-    :param tracker_type: type of tracker (e.g. sort, bytetrack)
-    :param partition: partition where the results are computed => test, train or val
-    :param tracker_evaluation: if True, the metrics are computed for the tracker
-    :param visualize_results: if True, the results are visualized in the images
-    :param save_results: if True, the results are saved in a csv file
+    Initialise the data in order to perform the tracking loop.
+    :param partition: the partition of the dataset (train, test or val)
+    :param dataset_name: the name of the dataset
+    :param exp_name: the name of the experiment
+    :return: the data inicialised
     """
     if partition != ('test' or 'training' or 'valid'):
         raise AssertionError('partition should be named: test, train or valid')
@@ -252,148 +257,83 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', partition='t
     # read detections from yolo output files
     # path_detections is the folder where the detections from yolo are stored
     all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
-                                                     filter_detections=True, augment_bbox_size=1, ground_truth=False)
+                                                     filter_detections=True,
+                                                     augment_bbox_size=1,
+                                                     ground_truth=False)
 
     anterior_video_id = None
+
+    return all_tracking_predictions, all_tracking_results, ground_truths, video_names_gt, all_detections, \
+        video_names_det, accumulator, tracker, anterior_video_id
+
+
+def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, partition='test',
+                       tracker_evaluation=True, visualize_results=False, save_results=False):
+    """
+    Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
+    ground truth the labels from supervisely (.json) but the labels from yolo (.txt)
+    :param dataset_name: name of the dataset
+    :param exp_name: name of the experiment (in yolo folder)
+    :param tracker_type: type of tracker (e.g. sort, bytetrack)
+    :param reid: use reid network to track. If None, no reid network is used or use reid by default in deepsort case.
+    :param partition: partition where the results are computed => test, train or val
+    :param tracker_evaluation: if True, the metrics are computed for the tracker
+    :param visualize_results: if True, the results are visualized in the images
+    :param save_results: if True, the results are saved in a csv file
+    """
+
+    # initialise the data
+    all_tracking_predictions, all_tracking_results, ground_truths, video_names_gt, all_detections, video_names_det, \
+        accumulator, tracker, anterior_video_id = initialise_data(partition, dataset_name, exp_name)
 
     # iterate for each img:
     for idx_frame, (ground_truth, detections) in enumerate(zip(ground_truths, all_detections)):
         # if video_id is not the same as the current video_id, then we have to reset the tracker
         if anterior_video_id is None:
             # create the tracker
-            tracker, accumulator = create_tracker(tracker_type)
+            tracker, accumulator = create_tracker(tracker_type=tracker_type,
+                                                  reid=reid)
             anterior_video_id = ground_truth['id_video']
 
         elif anterior_video_id != ground_truth['id_video']:
             # reset and create the tracker and print results if tracker_evaluation is True
-            tracker, accumulator, results = reset_tracker(accumulator, tracker_type, tracker_evaluation,
-                                                          anterior_video_id)
+            tracker, accumulator, results = reset_tracker(accumulator=accumulator,
+                                                          tracker_type=tracker_type,
+                                                          tracker_evaluation=tracker_evaluation,
+                                                          anterior_video_id=anterior_video_id,
+                                                          reid=reid)
             anterior_video_id = ground_truth['id_video']
             # append the results to the list of results
             all_tracking_results.append([results, anterior_video_id])
 
         # perform the tracking
-        det_centers, det_ids, all_tracking_predictions = track_detections_frame(all_tracking_predictions,
-                                                                                detections,
-                                                                                tracker,
-                                                                                tracker_type,
-                                                                                anterior_video_id,
-                                                                                video_names_det[idx_frame],
-                                                                                dataset_name,
-                                                                                partition)
+        det_centers, det_ids, all_tracking_predictions = track_detections_frame(predictions=all_tracking_predictions,
+                                                                                detections=detections,
+                                                                                tracker=tracker,
+                                                                                tracker_type=tracker_type,
+                                                                                anterior_video_id=anterior_video_id,
+                                                                                frame_name=video_names_det[idx_frame],
+                                                                                reid=reid)
 
         # update the accumulator
-        tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation)
+        tracking_evaluation_update_params(accumulator=accumulator,
+                                          ground_truth=ground_truth,
+                                          det_ids=det_ids,
+                                          det_centers=det_centers,
+                                          tracker_evaluation=tracker_evaluation)
 
-    # print the results for the last video
+    # print the results (last video)
     results, metrics = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
 
-    # append the results to the list of results
+    # append the results (last video) to the list of results
     all_tracking_results.append([results, anterior_video_id])
 
-    # evaluate results of the sequences (HOTA metric)
+    # evaluate results of the sequences (only HOTA metric)
     hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
 
-    # if save_results is True, then we save the results of the tracker and the detections
-    if save_results:
-        print('saving tracking results ...')
-        save_tracking_results(all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
-                              partition, metrics)
-
-    # if visualize_results is True, then we visualize the results of the tracker and the detections
-    if visualize_results and save_results:
-        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name, plot_gts=False,
-                                   plot_preds=True, save_video=True, path_to_save_video='results_tracking')
-
-    elif visualize_results and not save_results:
-        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name)
-
-    return all_tracking_predictions, all_tracking_results
-
-
-# deprecated function
-def track_gt_files(dataset_name, exp_name='prueba_groundTruths', tracker_type='sort', partition='test',
-                   tracker_evaluation=True, visualize_results=False, save_results=False):
-    """
-       Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take
-       as ground truth the labels from supervisely (.json) but the labels from yolo (.txt)
-       :param dataset_name: name of the dataset
-       :param exp_name: name of the experiment (in yolo folder)
-       :param tracker_type: type of tracker (e.g. sort, bytetrack)
-       :param partition: partition where the results are computed (WHERE THE INFERENCE HAS BEEN DONE) =>
-       test, train or val
-       :param tracker_evaluation: if True, the metrics are computed for the tracker
-       :param visualize_results: if True, the results are visualized in the images
-       :param save_results: if True, the results are saved in a csv file
-       return: tracking_predictions: list of the predictions of the tracker
-       return: tracking_results: list of the results of the tracker
-       """
-    if partition != ('test' or 'training' or 'valid'):
-        raise AssertionError('partition should be named: test, training or valid')
-
-    # where will be stored the predictions of the tracker
-    all_tracking_predictions = []
-
-    # results of the tracking (metrics)
-    all_tracking_results = []
-
-    # tracker and accumulator are referenced here
-    accumulator, tracker = None, None
-
-    # process ground truths from yolo input files
-    # the ground truths are in the ./data/Apple_Tracking_db dataset
-    ground_truths, video_names_gt = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
-                                                   ground_truth=True)
-
-    anterior_video_id = None
-    # iterate for each img:
-    for idx_frame, ground_truth in enumerate(ground_truths):
-        # if video_id is not the same as the current video_id, then we have to reset the tracker
-        if anterior_video_id is None:
-            # create the tracker
-            tracker, accumulator = create_tracker(tracker_type)
-            anterior_video_id = ground_truth['id_video']
-
-        elif anterior_video_id != ground_truth['id_video']:
-            # reset and create the tracker and print results if tracker_evaluation is True
-            tracker, accumulator, results = reset_tracker(accumulator, tracker_type, tracker_evaluation,
-                                                          anterior_video_id)
-            anterior_video_id = ground_truth['id_video']
-            # append the results to the list of results
-            all_tracking_results.append([results, anterior_video_id])
-
-        gt_detections = convert_gt_to_readable_detections(ground_truth)
-
-        # perform the tracking
-        det_centers, det_ids, all_tracking_predictions = track_detections_frame(all_tracking_predictions,
-                                                                                gt_detections,
-                                                                                tracker,
-                                                                                tracker_type,
-                                                                                anterior_video_id,
-                                                                                video_names_gt[idx_frame],
-                                                                                dataset_name,
-                                                                                partition)
-
-        # update the accumulator
-        tracking_evaluation_update_params(accumulator, ground_truth, det_ids, det_centers, tracker_evaluation)
-
-    # print the results for the last video
-    results, metrics = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
-
-    # append the results to the list of results
-    all_tracking_results.append([results, anterior_video_id])
-
-    # if save_results is True, then we save the results of the tracker and the detections
-    if save_results:
-        print('saving tracking results ...')
-        save_tracking_results(all_tracking_results, dataset_name, exp_name, tracker_type, partition, metrics)
-
-    # if visualize_results is True, then we visualize the results of the tracker and the detections
-    if visualize_results and save_results:
-        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name, plot_gts=False,
-                                   plot_preds=True, save_video=True, path_to_save_video='results_tracking')
-    elif visualize_results and not save_results:
-        visualize_tracking_results(all_tracking_predictions, ground_truths, partition, dataset_name)
+    # save and visualize results if necessary/requested
+    save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
+                       partition, metrics, visualize_results, all_tracking_predictions, ground_truths, reid)
 
     return all_tracking_predictions, all_tracking_results
 
@@ -402,16 +342,10 @@ if __name__ == '__main__':
     # todo: fer un main on es puguin parsejar aquests arguments per a que quan es pengi al git quedi molt més sencer
     tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
                                                                 exp_name='yolov5x',
-                                                                tracker_type='bytetrack',
+                                                                tracker_type='deepsort',
+                                                                #reid='reid_applenet',
+                                                                reid=None,
                                                                 partition='test',
                                                                 tracker_evaluation=True,
                                                                 visualize_results=True,
                                                                 save_results=True)
-    """
-    tracking_predictions, tracking_results = track_gt_files(dataset_name='Apple_Tracking_db_yolo',
-                                                            tracker_type='bytetrack',
-                                                            partition='test',
-                                                            tracker_evaluation=True,
-                                                            visualize_results=True,
-                                                            save_results=True)
-    """

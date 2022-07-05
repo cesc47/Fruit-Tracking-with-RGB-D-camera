@@ -147,6 +147,8 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
 def train(model, loss_func, mining_func, device, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, labels) in enumerate(train_loader):
+        # stack the 3 tensors in a new tensor adding one channel
+        data = torch.stack([data[0], data[1], data[2]], dim=1)
         data, labels = data.to(device), labels.to(device)
         optimizer.zero_grad()
         embeddings = model(data)
@@ -154,21 +156,20 @@ def train(model, loss_func, mining_func, device, train_loader, optimizer, epoch)
         loss = loss_func(embeddings, labels, indices_tuple)
         loss.backward()
         optimizer.step()
-        if batch_idx % 20 == 0:
+        if batch_idx % 50 == 0:
             print(
                 "Epoch {} Iteration {}: Loss = {}, Number of mined triplets = {}".format(
                     epoch, batch_idx, loss, mining_func.num_triplets
                 )
             )
 
-
-### convenient function from pytorch-metric-learning ###
+# todo: implement this function correctly, is crashing when using test in fit_triplet
+# convenient function from pytorch-metric-learning
 def get_all_embeddings(dataset, model):
     tester = testers.BaseTester()
     return tester.get_all_embeddings(dataset, model)
 
-
-### compute accuracy using AccuracyCalculator from pytorch-metric-learning ###
+# compute accuracy using AccuracyCalculator from pytorch-metric-learning
 def test(train_set, test_set, model, accuracy_calculator):
     train_embeddings, train_labels = get_all_embeddings(train_set, model)
     test_embeddings, test_labels = get_all_embeddings(test_set, model)
@@ -180,7 +181,9 @@ def test(train_set, test_set, model, accuracy_calculator):
     )
     print("Test set accuracy (Precision@1) = {}".format(accuracies["precision_at_1"]))
 
-def fit_triplet(num_epochs, model, loss_func, mining_func, device, train_loader, optimizer, accuracy_calculator, db_train, db_test):
+
+def fit_triplet(num_epochs, model, loss_func, mining_func, device, train_loader, optimizer, model_id,
+                accuracy_calculator, db_train, db_test):
     """
     Train a model for a given number of epochs. (Triplet)
     :param num_epochs: Number of epochs to train the model
@@ -190,10 +193,15 @@ def fit_triplet(num_epochs, model, loss_func, mining_func, device, train_loader,
     :param device: Device to use for training
     :param train_loader: Data loader for training
     :param optimizer: Optimizer to use for training
+    :param model_id: Model ID
     :param accuracy_calculator: Accuracy calculator to use
     :param db_train: Training database
     :param db_test: Testing database
     """
     for epoch in range(1, num_epochs + 1):
         train(model, loss_func, mining_func, device, train_loader, optimizer, epoch)
-        test(db_train, db_test, model, accuracy_calculator)
+        # test(db_train, db_test, model, accuracy_calculator)
+
+        PATH = 'models/' + model_id + '.pth'
+        torch.save(model.state_dict(), PATH)
+
