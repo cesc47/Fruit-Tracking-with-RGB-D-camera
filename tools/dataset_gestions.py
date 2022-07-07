@@ -465,10 +465,15 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
         img = img / normalization
 
     if show_img:
+        # divide all img values by the max value of the img to get the values between 0 and 255
+        img_show = img / img.max()
+        img_show = img_show * 255
+        img_show = img_show.astype(np.uint8)
+
         # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
         # apply colormap to the img
-        img = cv2.applyColorMap(img, cv2.COLORMAP_JET)
-        cv2.imshow('image', img)
+        img_show = cv2.applyColorMap(img_show, cv2.COLORMAP_JET)
+        cv2.imshow('image', img_show)
         cv2.waitKey(0)
 
     return img
