@@ -462,14 +462,7 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
 
     if normalization is not None:
         # divide the image by the normalization factor, as type float
-
         img = img / normalization
-
-
-    # divide all img values by the max value of the img to get the values between 0 and 255
-    #img = img / img.max()
-    #img = img * 255
-    #img = img.astype(np.uint8)
 
     if show_img:
         # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
@@ -600,17 +593,17 @@ def generate_crops():
         img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=max_d)
         img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=max_i)
 
+        crop_bbox_modified = augment_size_of_bboxes_in_crops(crop['bbox_tlbr'], percentage_to_augment=0.15, size_img=(1080, 1920))
+
         # crop the images
-        img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-        img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-        img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_rgb = img_rgb[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+        img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+        img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
 
         # if i is multiple of 5, save the crops in the folder 'test'
         if crop["id"] % 5 == 0:
-            # path_to_id = os.path.join(path_to_test, str(crop["id"]))
             path_to_id = path_to_test
         else:
-            # path_to_id = os.path.join(path_to_train, str(crop["id"]))
             path_to_id = path_to_train
 
         # save the image, save the depth and infrared image as a .png file
@@ -698,10 +691,14 @@ def generate_crops_numpy():
             img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
             img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
 
+            # augment the bounding boxes by a percentage
+            bbox_tlbr = crop['bbox_tlbr']
+            crop_bbox_modified = augment_size_of_bboxes_in_crops(bbox_tlbr, percentage_to_augment=0.15)
+
             # crop the images
-            img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-            img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-            img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+            img_rgb = img_rgb[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+            img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+            img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
 
             img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
             crops_pickles[crop['id']].append(img)
@@ -843,7 +840,7 @@ if __name__ == "__main__":
     # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162','210928_165030_k_r2_w_015_125_162_209_50_D',
     #                              show_img=True)
     # generate_crops()
-    #generate_crops_numpy()
+    generate_crops_numpy()
     # generate_csv_from_crops()
     # compute_max_value_depth_and_infrared_crops()
     # redistribute_crops_numpy()

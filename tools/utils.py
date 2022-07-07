@@ -219,6 +219,36 @@ def augment_size_of_bboxes(detections, size_to_augment):
     return detections_augmented
 
 
+def augment_size_of_bboxes_in_crops(bbox_tlbr, percentage_to_augment=0.15, size_img=(1080, 1920)):
+    """
+    Augment the size of the bboxes.
+    :param bbox_tlbr: the bbox in tlbr format
+    :param percentage_to_augment: the percentage to augment, in percentage of the size of the image
+    :param size_img: the size of the image
+    :return: the bbox in tlbr format with the size augmented
+    """
+    height = bbox_tlbr[3] - bbox_tlbr[1]
+    width = bbox_tlbr[2] - bbox_tlbr[0]
+
+    # augment the size of the bbox
+    bbox_tlbr[0] -= percentage_to_augment * width
+    if bbox_tlbr[0] < 0:
+        bbox_tlbr[0] = 0
+    bbox_tlbr[1] -= percentage_to_augment * height
+    if bbox_tlbr[1] < 0:
+        bbox_tlbr[1] = 0
+
+    bbox_tlbr[2] += percentage_to_augment * width
+    if bbox_tlbr[2] > size_img[0]:
+        bbox_tlbr[2] = size_img[0]
+
+    bbox_tlbr[3] += percentage_to_augment * height
+    if bbox_tlbr[3] > size_img[1]:
+        bbox_tlbr[3] = size_img[1]
+
+    return [int(x) for x in bbox_tlbr]
+
+
 def search_in_dataset_an_image_from_yolo_dataset(framename):
     """
     Search in the dataset an image from the yolo dataset. gets the framename and returns the path of the image.

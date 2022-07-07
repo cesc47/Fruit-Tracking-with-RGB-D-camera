@@ -206,6 +206,7 @@ class DeepSort(object):
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
     def update(self, output_results, img_file_name):
+        # todo: passar fora a update tracker que doni imatges en comptes de paths
         # if endswith .png means reid is default
         if img_file_name.endswith('.png'):
             ori_img = cv2.imread(img_file_name)
