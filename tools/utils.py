@@ -53,6 +53,12 @@ def convert_bbox_to_yolo_format(size_img, bbox):
 def convert_bbox_from_yolo_format(x, y, w, h, size_img=(1080, 1920)):
     """
     Convert the bounding box from the yolo format to the original format
+    :param x: x coordinate of the top left corner of the bounding box
+    :param y: y coordinate of the top left corner of the bounding box
+    :param w: width of the bounding box
+    :param h: height of the bounding box
+    :param size_img: the size of the image
+    :return: the bounding box in the original format
     """
 
     x_min = x - w/2
@@ -73,6 +79,7 @@ def get_gt_range_index_imgs(video_name, path=GLOBAL_PATH_DB):
     Get the ground truth range of the images of a video. The ground truth range is the range of the images that have
     a ground truth annotation.
     :param video_name: the name of the video
+    :param path: the path to the database
     :return: the ground truth range of the images of the video, and the name of the video
     """
     path_images = os.path.join(path, video_name, 'images')
@@ -197,7 +204,8 @@ def augment_size_of_bboxes(detections, percentage_to_augment=0.075, size_img=(10
     list format ('bbox', 1) with the detections enlarged. the size to augment is defined thanks to the size_to_augment
     parameter.
     :param detections: the detections in a list format ('bbox', 1)
-    :param size_to_augment: the size to augment, in pixels
+    :param percentage_to_augment: the percentage to augment the size of the bboxes
+    :param size_img: the size of the image
     :return: the detections in a list format ('bbox', 1) with the detections enlarged
     """
     detections_augmented = []

@@ -8,6 +8,7 @@ from tools.utils import compute_centroids_bboxes_tlbr
 from tools.TrackEval.trackeval.metrics import HOTA
 from tools.visualization import visualize_tracking_results
 
+
 def compute_distance_matrix_frame(gt_centers, det_centers, max_d2=2000):
     """
     Computes the distance matrix between the ground truth and the detections. The distance matrix is computed for each
@@ -158,6 +159,7 @@ def refactor_ids_in_sequence(all_sequences, gt=False):
     refactor the ids in the sequence (ALL sequences). This function is used to refactor the ids in the sequence in order
     to work with the metric.
     :param all_sequences: list of lists of detections
+    :param gt: if True, the ids are refactored for the ground truth. If False, the ids are refactored for the tracking
     :return: list of lists of detections with refactored ids
     """
 
@@ -226,6 +228,7 @@ def refactor_ids_sequences_v2(all_sequences, gt=False):
     refactor the ids in the sequence (for each sequence). This function is used to refactor the ids in the sequence in
     order to work with the metric.
     :param all_sequences: list of lists of detections
+    :param gt: if True, the ids are refactored for the ground truth. If False, the ids are refactored for the tracking
     :return: list of lists of detections with refactored ids
     """
     sequence_refactored = []
@@ -262,6 +265,7 @@ def reset_ids_sequence(sequence):
 def evaluate_sequences_hota_metric(all_tracking_predictions, all_ground_truths):
     """
     todo: clean this function... it is a mess. do it better by sequences (based as in refactor_ids_sequences_v2)
+    todo: clean bug for when using multiplier of frames (it crashes here)
     This function is used to compute the hota metric for all the sequences.
     :param all_tracking_predictions: list of lists of tracking predictions
     :param all_ground_truths: list of lists of ground truth
@@ -448,6 +452,10 @@ def compute_mean_for_metrics(path_to_csv, total_frames):
 
 
 def delete_duplicated_row(path_to_csv):
+    """
+    This function deletes the duplicated rows in the .csv file.
+    :param path_to_csv: path to the .csv file
+    """
     # read the csv file
     with open(path_to_csv, 'r') as f:
         reader = csv.reader(f)

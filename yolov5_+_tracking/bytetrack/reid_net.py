@@ -168,6 +168,7 @@ def modify_input_resnet(model, num_input_channels=5):
     """
     Modify the input of the resnet model.
     :param model: the resnet model
+    :param num_input_channels: the number of input channels
     """
     model.conv1 = nn.Conv2d(num_input_channels, 64, 7, 2, 3, bias=False)
     model.bn1 = nn.BatchNorm2d(64)
@@ -179,6 +180,8 @@ def modify_output_resnet(model, num_output_channels=1414):
     """
     Modify the output of the resnet model.
     :param model: the resnet model
+    :param num_output_channels: the number of output channels
+    :return: the modified resnet model
     """
     # model.add_module("fc_last", nn.Linear(1000, num_output_channels))
     model = torch.nn.Sequential(model, torch.nn.Linear(1000, num_output_channels))
@@ -192,6 +195,9 @@ def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_chan
     'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
     :param model_name: the name of the model
     :param pretrained: if True, load the pretrained weights
+    :param num_input_channels: the number of input channels
+    :param num_output_channels: the number of output channels
+    :return: the modified resnet model
     """
 
     net = load_resnet(model_name, pretrained)

@@ -13,8 +13,12 @@ from torch.utils.data import Dataset
 import numpy as np
 import torch
 
+
 # create custom dataset pytorch, that loads the images from the folder. images are rgb, d and I
 class AppleCrops(Dataset):
+    """
+    Custom class for the dataset, Apple crops are crops of the apple from the apple tracking dataset (rgb, d, i)
+    """
     def __init__(self, root_path, split, transform=None):
         self.root_path = root_path
         self.split = split
@@ -52,6 +56,9 @@ class AppleCrops(Dataset):
 
 
 class AppleCropsRGB(Dataset):
+    """
+    Custom class for the dataset, Apple crops are crops of the apple from the apple tracking dataset (rgb)
+    """
     def __init__(self, root_path, split, transform=None):
         self.root_path = root_path
         self.split = split
@@ -88,6 +95,8 @@ def mean_and_std_calculator(root_path='../../data'):
     """
     This function computes the mean and std of the dataset for both splits, train and test
     It is used to normalize the images.
+    :param root_path: path to the data
+    :return: mean and std of the train and test dataset
     """
     # create custom dataset pytorch, that loads the images from the folder. images are rgb, d and I. Only apply the
     # resize transformation.
@@ -149,6 +158,10 @@ def show_image(idx, dataset):
 
 # create custom dataset pytorch, that loads the images from the folder. images are rgb, d and I => Triplet
 class AppleCropsTriplet(Dataset):
+    """
+    Custom class for the dataset, Apple crops are crops of the apple from the apple tracking dataset (rgb, d, i), to
+    use in the training of a triplet network.
+    """
     def __init__(self, root_path, split, transform=None):
         self.root_path = root_path
         self.split = split
@@ -184,6 +197,7 @@ class AppleCropsTriplet(Dataset):
             idx_img = int(np.random.normal(idx, 300)) # std 100 means that every 100 crops, a new frame is processed (aprox)
             if idx_img < 0 or idx_img >= len(self.files):
                 continue
+
             # todo: implementar sistema que si coje la misma imagen, se repite. Maximo 10 veces porque sino se queda dentro del bucle si solo hay 1 imagen del crop.
 
             # select img randomly from the list of images

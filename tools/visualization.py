@@ -215,8 +215,6 @@ def save_frames_to_video(imgs, path):
     Save a video from a list of images.
     :param imgs: list of images
     :param path: path to the video
-    :param partition: 'training' or 'valid' or 'test'
-    :param dataset_name: name of the dataset
     """
     # the path
     path = os.path.join(path, 'tracking_results.mp4')
@@ -237,6 +235,7 @@ def umap_from_embeddings(model):
     """
     Create a umap visualization of the embeddings of some images. It performs inference on the model to extract the
     embeddings.
+    :param model: the model
     """
     imgs_stacked, id_map, ids = stack_imgs_for_embeddings(visualize_images=False)
 
@@ -276,7 +275,7 @@ def umap_from_embeddings(model):
 
 if __name__ == "__main__":
     """
-    Prueba para visualizar los embeddings
+    Test in this main to visualize some embeddings from the crops of the apples (using a trained a triplet network).
     """
 
     import torch

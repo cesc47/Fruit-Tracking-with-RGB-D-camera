@@ -3,10 +3,8 @@ import json
 import shutil
 import pickle
 import random
-import matplotlib.pyplot as plt
 import torch
 
-import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
@@ -127,7 +125,8 @@ def rotate_images(path_to_images, clockwise=True, test=False):
 def rotate_segmentation():
     """
     This function rotates the segmentation of the images. takes into account all the videos on the dataset and the
-    type of rotation that is done (clockwise or counterclockwise). It just modifies the json file ann.json for each video.
+    type of rotation that is done (clockwise or counterclockwise). It just modifies the json file ann.json for each
+    video.
     """
 
     # read info_rotations.txt, it has the info if the rotations of the video are clockwise or counterclockwise
@@ -284,6 +283,7 @@ def create_custom_db_for_yolo(path='../data/Apple_Tracking_db',
             print(f'Processing video {video_name} ...')
             # needed to order the images in the same order as the labels
             list_nums = []
+            img = None
             for img in sorted(os.listdir(os.path.join(path, video_name, 'images'))):
                 # sorting by string appears to not work, so we sort by the number of the image
                 if img.endswith('.png'):
@@ -446,6 +446,7 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
     show_img is True.
     :param videoname: name of the video
     :param file_name: name of the file
+    :param normalization: if it is not None, it is the normalization of the depth or infrared image
     :param show_img: if True, the image is shown
     :return: the depth or infrared image
     """
@@ -485,6 +486,7 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
 def compute_max_value_depth_and_infrared_crops(crops):
     """
     This function computes the max value of the depth and infrared crops.
+    :param crops: list of crops
     """
 
     max_d = 0
@@ -739,8 +741,8 @@ def redistribute_crops_numpy(add_D_and_I=False):
 def get_info_crops():
     """
     This function gets the information of the crops in the folder crops_of_Apple_Tracking_db_numpy. It gets the
-    percentage of zeros in the depth and infrared images (images that are all 0!). Also gets the mean of the distance
-    of the images for each video.
+    percentage of zeros in the depth and infrared images (images that are all 0!). Also gets the mean and std of the
+    distance and infrared of the images for each video.
     """
 
     crops = get_crops()

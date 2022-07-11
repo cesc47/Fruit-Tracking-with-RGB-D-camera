@@ -1,9 +1,9 @@
-import motmetrics as mm
 import argparse
 
 from sort import sort
 from bytetrack import byte_tracker
 from deepsort import deepsort
+import motmetrics as mm
 
 from tools.utils import *
 from tools.metrics import tracking_evaluation_results, tracking_evaluation_update_params, \
@@ -75,13 +75,13 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
     return det_centers, det_ids, predictions
 
 
-def read_from_yolo(path, filter_detections=True, augment_bbox_size=5, ground_truth=False):
+def read_from_yolo(path, filter_detections=True, augment_bboxes=0.075, ground_truth=False):
     """
     Reads detections from yolo output file.
     :param path: path to yolo output file
     :param filter_detections: if True, the detections are filtered by size (size hardcoded in utils.py, in function of
     the distance between the camera and the apples: 125, 175 or 225), are hardcoded thanks to compute_sizes_all_gts()
-    :param augment_bbox_size: if True, the bboxes are augmented by each coordinate by the value of augment_bbox_size
+    :param augment_bboxes: increment the size of bboxes by this value (augment_bboxes * 100 (%))
     :param ground_truth: if True, the ground truth annotations are read instead of the detections
     :return: list of detections/ground truths (for all frames)
     """
@@ -165,7 +165,7 @@ def read_from_yolo(path, filter_detections=True, augment_bbox_size=5, ground_tru
             if filter_detections:
                 detections = filter_detections_by_size(detections, detections_file)
 
-            detections = augment_size_of_bboxes(detections)
+            detections = augment_size_of_bboxes(detections, percentage_to_augment=augment_bboxes)
 
             # add detections to all_detections list
             all_results.append(detections)
@@ -185,7 +185,10 @@ def create_tracker(tracker_type, reid=None):
     :param reid: use reid network to track. If None, no reid network is used or use reid by default in deepsort case.
     :return: the tracker
     """
+
     # create the tracker
+    tracker = None
+
     if tracker_type == 'sort' and reid is None:
         tracker = sort.Sort()
 
@@ -259,7 +262,6 @@ def initialise_data(partition, dataset_name, exp_name):
     # path_detections is the folder where the detections from yolo are stored
     all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
                                                      filter_detections=True,
-                                                     augment_bbox_size=1,
                                                      ground_truth=False)
 
     anterior_video_id = None
@@ -268,7 +270,7 @@ def initialise_data(partition, dataset_name, exp_name):
         video_names_det, accumulator, tracker, anterior_video_id
 
 
-def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, partition='test',
+def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, partition='test', multiplier_frames=1,
                        tracker_evaluation=True, visualize_results=False, save_results=False):
     """
     Performs the tracking in the test dataset from yolo. It is simmilar to track() function but now it does not take as
@@ -278,6 +280,9 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, p
     :param tracker_type: type of tracker (e.g. sort, bytetrack)
     :param reid: use reid network to track. If None, no reid network is used or use reid by default in deepsort case.
     :param partition: partition where the results are computed => test, train or val
+    :param multiplier_frames: number of frames to be processed (e.g. if multiplier_frames=1, all the frames are
+    processed. If multiplier_frames=2, the first frame is processed and the second frame is not processed, giving the
+    sensation as if the video was taken in fast motion, in this case x2)
     :param tracker_evaluation: if True, the metrics are computed for the tracker
     :param visualize_results: if True, the results are visualized in the images
     :param save_results: if True, the results are saved in a csv file
@@ -307,6 +312,10 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, p
             # append the results to the list of results
             all_tracking_results.append([results, anterior_video_id])
 
+        # skip frames according to the multiplier_frames
+        if idx_frame % multiplier_frames != 0:
+            continue
+
         # perform the tracking
         det_centers, det_ids, all_tracking_predictions = track_detections_frame(predictions=all_tracking_predictions,
                                                                                 detections=detections,
@@ -334,31 +343,46 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, p
         hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
 
         # save and visualize results if necessary/requested
-        save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
-                           partition, metrics, visualize_results, all_tracking_predictions, ground_truths, reid)
+        save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name,
+                           tracker_type, partition, metrics, visualize_results, all_tracking_predictions,
+                           ground_truths, reid)
 
     return all_tracking_predictions, all_tracking_results
 
 
 def parse_args():
+    """
+    Parse the arguments of the script.
+    :return: the arguments
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--dataset_name', type=str, help='name of the dataset', default='Apple_Tracking_db_yolo')
-    parser.add_argument('--exp_name', type=str, help='name of the experiment where we have done inference in yolo', default='yolov5x')
-    parser.add_argument('--tracker_type', type=str, help='type of tracker (e.g. sort, bytetrack, deepsort)', required=True)
+    parser.add_argument('--exp_name', type=str, help='name of the experiment where we have done inference in yolo',
+                        default='yolov5x')
+    parser.add_argument('--tracker_type', type=str, help='type of tracker (e.g. sort, bytetrack, deepsort)',
+                        required=True)
     parser.add_argument('--reid', type=str, help='use reid network to track. If None, no reid network is used or use '
                                                  'reid by default in deepsort case.', default=None)
     parser.add_argument('--partition', type=str, help='partition where the results are computed => test, train or val. '
                                                       'careful that this relates to what db you have done inference in '
                                                       'yolo (name of the experiment)', default='test')
-    parser.add_argument('--tracker_evaluation', type=bool, help='if True, the metrics are computed for the tracker', default=False)
-    parser.add_argument('--visualize_results', type=bool, help='if True, the results are visualized in the images', default=False)
+    parser.add_argument('--multiplier_frames', type=int, help='number of frames to skip between each frame', default=1)
+    parser.add_argument('--tracker_evaluation', type=bool, help='if True, the metrics are computed for the tracker',
+                        default=False)
+    parser.add_argument('--visualize_results', type=bool, help='if True, the results are visualized in the images',
+                        default=False)
     parser.add_argument('--save_results', type=bool, help='if True, the results are saved in a csv file', default=False)
 
     return parser.parse_args()
 
 
 def main():
+    """
+    Main function to perform the tracking
+    """
+
+    # parse the arguments
     args = parse_args()
 
     # call the main function that does the tracking
@@ -367,6 +391,7 @@ def main():
                        tracker_type=args.tracker_type,
                        reid=args.reid,
                        partition=args.partition,
+                       multiplier_frames=args.multiplier_frames,
                        tracker_evaluation=args.tracker_evaluation,
                        visualize_results=args.visualize_results,
                        save_results=args.save_results)
