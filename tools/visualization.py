@@ -2,7 +2,9 @@ import os
 import cv2
 import numpy as np
 import random
-#from utils import convert_bbox_from_yolo_format
+from tools.dataset_gestions import stack_imgs_for_embeddings
+import umap
+import matplotlib.pyplot as plt
 
 # located in data/Apple_tracking_db
 GLOBAL_PATH_DB = './data/Apple_Tracking_db'
@@ -137,43 +139,6 @@ def plot_gt_bboxes_in_video(annotations, video_name, init_frame, end_frame, plot
             break
 
 
-def plot_bboxes_in_img_yolo(img_name, split='training'):
-    """
-    Plot the bounding boxes in an image using YOLO format for the labels.
-    :param img_name: name of the image
-    :param split: 'training' or 'valid' or 'test'
-    """
-    path = os.path.join(os.getcwd(), 'yolov5_+_tracking', 'datasets', 'Apple_Tracking_db_yolo', split)
-
-    # see if the image exists
-    path_to_img = os.path.join(path, 'images', img_name + '.png')
-    if not os.path.isfile(path_to_img):
-        raise AssertionError('Image not found')
-
-    path_to_label = os.path.join(path, 'labels', img_name + '.txt')
-    if not os.path.isfile(path_to_img):
-        raise AssertionError('Label not found')
-
-    # load the image
-    img = cv2.imread(path_to_img)
-
-    # load the labels
-    with open(path_to_label, 'r') as f:
-        labels = f.readlines()
-
-    # process labels
-    for label in labels:
-        label = label.split()
-        label = [float(x) for x in label]
-        _, x, y, h, w = label
-        x_min, y_min, x_max, y_max = convert_bbox_from_yolo_format(x, y, h, w)
-        cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
-
-    # press 0 to show images
-    cv2.imshow('img', img)
-    key = cv2.waitKey(0)
-
-
 def visualize_tracking_results_frame(img_name, path_to_imgs, ground_truth, prediction, plot_gts=True, plot_preds=True):
     """
     Visualize the tracking results for a single frame. The ground truth and the prediction are dicts.
@@ -268,18 +233,127 @@ def save_frames_to_video(imgs, path):
     out.release()
 
 
+def umap_from_embeddings(model):
+    """
+    Create a umap visualization of the embeddings of some images. It performs inference on the model to extract the
+    embeddings.
+    """
+    imgs_stacked, id_map, ids = stack_imgs_for_embeddings(visualize_images=False)
+
+    with torch.no_grad():
+        embedding = model(imgs_stacked)
+        embedding = embedding.detach().numpy()
+    # crop the embedding in 1414 (because the two others are the same)
+    embedding = embedding[:, :1414]
+
+    # create the umap embedding, print the embedding with colors of the class
+    umap_embedding = umap.UMAP(n_neighbors=10, min_dist=0.1, n_components=2, metric='correlation').fit_transform(embedding)
+
+    # plot the umap embedding with color
+    plt.figure(figsize=(10, 10))
+    # assign random color vector to each class.  2D array in which the rows are RGB
+    colors = np.array(["red", "green", "blue", "yellow", "pink", "black", "orange", "purple", "brown", "gray", "cyan"])
+
+    # see if len colors is the same as len ids
+    if len(colors) != len(ids):
+        raise ValueError('The number of colors is different from the number of ids')
+
+    # create array of Falses of size colors
+    colors_bool = np.zeros(len(colors))
+
+    for idx, id in enumerate(id_map):
+        # get index where the id is in the ids list
+        idx_c = np.where(np.array(ids) == id)[0][0]
+        # visualize embeddings in 2d
+        plt.scatter(umap_embedding[idx, 0], umap_embedding[idx, 1], c=colors[idx_c])
+        if colors_bool[idx_c] == 0:
+            colors_bool[idx_c] = 1
+            plt.text(umap_embedding[idx, 0], umap_embedding[idx, 1], id, color=colors[idx_c], fontsize=40)
+
+    plt.title('UMAP embedding')
+    plt.show()
+
+
 if __name__ == "__main__":
     """
-    video_name = '210928_094225_k_r2_e_015_175_162'
-    annotations = read_segmentation(video_name)
-    plot_gt_bboxes_in_video(annotations, video_name, init_frame=0, end_frame=20)
-    """
-    """
-    video_name = '210906_121930_k_r2_e_015_125_162'
-    annotations = read_segmentation(video_name)
-    # plot_gt_bboxes_in_img(annotations, video_name, frame_num=0, show_img=True)
-    plot_gt_bboxes_in_video(annotations, video_name, init_frame=0, end_frame=13)
+    Prueba para visualizar los embeddings
     """
 
-    img = '210726_170244_k_r2_a_015_225_162_697_172_C'
-    plot_bboxes_in_img_yolo(img, split='test')
+    import torch
+    import torch.nn as nn
+
+    class ReidAppleNetTripletResNet(nn.Module):
+        """
+        Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
+        input and outputs.
+        """
+
+        def __init__(self, num_classes=1414):
+            super(ReidAppleNetTripletResNet, self).__init__()
+            self.reid_apple_net = load_resnet_modified(num_output_channels=num_classes)
+
+        def forward(self, data):
+            embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
+            embedded_y = self.reid_apple_net(data[:, 1, :, :, :])
+            embedded_z = self.reid_apple_net(data[:, 2, :, :, :])
+
+            # concatenate the three tensors
+            embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+
+            return embedded
+
+
+    def load_resnet(model_name='resnet152', pretrained=True):
+        """
+        Load a pretrained resnet model. The model name should be one of the following:
+        'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
+        :param model_name: the name of the model
+        :param pretrained: if True, load the pretrained weights
+        """
+        return torch.hub.load('pytorch/vision:v0.10.0', model_name, pretrained)
+
+
+    def modify_input_resnet(model, num_input_channels=5):
+        """
+        Modify the input of the resnet model.
+        :param model: the resnet model
+        """
+        model.conv1 = nn.Conv2d(num_input_channels, 64, 7, 2, 3, bias=False)
+        model.bn1 = nn.BatchNorm2d(64)
+        model.relu = nn.ReLU(inplace=True)
+        model.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+
+    def modify_output_resnet(model, num_output_channels=1414):
+        """
+        Modify the output of the resnet model.
+        :param model: the resnet model
+        """
+        # model.add_module("fc_last", nn.Linear(1000, num_output_channels))
+        model = torch.nn.Sequential(model, torch.nn.Linear(1000, num_output_channels))
+        return model
+
+
+    def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=1414):
+        """
+        Changing a resnet to extract the features of the images (re-id network)
+        Load a pretrained resnet model. The model name should be one of the following:
+        'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
+        :param model_name: the name of the model
+        :param pretrained: if True, load the pretrained weights
+        """
+
+        net = load_resnet(model_name, pretrained)
+
+        if num_input_channels != 3:
+            modify_input_resnet(net, num_input_channels)
+
+        net = modify_output_resnet(net, num_output_channels)
+
+        return net
+
+    model = ReidAppleNetTripletResNet()
+    # load state dict
+    model.load_state_dict(torch.load('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/bytetrack/models/reid_applenet_resnet_triplet.pth'))
+    model.eval()
+    umap_from_embeddings(model)

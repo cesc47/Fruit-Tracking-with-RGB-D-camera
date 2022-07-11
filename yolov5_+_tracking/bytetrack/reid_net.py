@@ -195,7 +195,10 @@ def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_chan
     """
 
     net = load_resnet(model_name, pretrained)
-    modify_input_resnet(net, num_input_channels)
+
+    if num_input_channels != 3:
+        modify_input_resnet(net, num_input_channels)
+
     net = modify_output_resnet(net, num_output_channels)
 
     return net

@@ -6,7 +6,6 @@ import cv2
 import logging
 import torchvision.transforms as transforms
 
-
 class BasicBlock(nn.Module):
     def __init__(self, c_in, c_out, is_downsample=False):
         super(BasicBlock, self).__init__()
@@ -208,8 +207,78 @@ class ReidAppleNet(nn.Module):
         return x
 
 
+class ReidAppleNetTriplet(nn.Module):
+    """
+    Implementation of the Reid AppleNet model with triplet loss from custom NN (ReidAppleNet).
+    """
+    def __init__(self, num_classes=1414, reid=False):
+        super(ReidAppleNetTriplet, self).__init__()
+        self.reid_apple_net = ReidAppleNet(num_classes, reid)
+
+    def forward(self, data):
+        embedded_x = self.reid_apple_net(data[:, 0, :, :, :]) # batchsize, anchor, channels, height, width
+        embedded_y = self.reid_apple_net(data[:, 1, :, :, :]) # batchsize, positive, channels, height, width
+        embedded_z = self.reid_apple_net(data[:, 2, :, :, :]) # batchsize, negative, channels, height, width
+
+        # concatenate the three tensors
+        embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+
+        return embedded
+
+
+def load_resnet(model_name='resnet152', pretrained=True):
+    """
+    Load a pretrained resnet model. The model name should be one of the following:
+    'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
+    :param model_name: the name of the model
+    :param pretrained: if True, load the pretrained weights
+    """
+    return torch.hub.load('pytorch/vision:v0.10.0', model_name, pretrained)
+
+
+def modify_input_resnet(model, num_input_channels=5):
+    """
+    Modify the input of the resnet model.
+    :param model: the resnet model
+    """
+    model.conv1 = nn.Conv2d(num_input_channels, 64, 7, 2, 3, bias=False)
+    model.bn1 = nn.BatchNorm2d(64)
+    model.relu = nn.ReLU(inplace=True)
+    model.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+
+def modify_output_resnet(model, num_output_channels=1414):
+    """
+    Modify the output of the resnet model.
+    :param model: the resnet model
+    """
+    # model.add_module("fc_last", nn.Linear(1000, num_output_channels))
+    model = torch.nn.Sequential(model, torch.nn.Linear(1000, num_output_channels))
+    return model
+
+
+def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=1414):
+    """
+    Changing a resnet to extract the features of the images (re-id network)
+    Load a pretrained resnet model. The model name should be one of the following:
+    'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
+    :param model_name: the name of the model
+    :param pretrained: if True, load the pretrained weights
+    """
+
+    net = load_resnet(model_name, pretrained)
+
+    if num_input_channels != 3:
+        modify_input_resnet(net, num_input_channels)
+
+    net = modify_output_resnet(net, num_output_channels)
+
+    return net
+
+
 class Extractor(object):
     def __init__(self, model_path, use_cuda=True):
+        self.model_name = model_path.split('/')[-1].split('.')[0]
         # default network
         if not model_path.endswith('.pth'):
             self.net = Net(reid=True)
@@ -226,19 +295,36 @@ class Extractor(object):
                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
             ])
 
-        # reid network w/ 5 channels
         else:
-            self.net = ReidAppleNet()
+            if model_path.endswith('rgb.pth'):
+                self.net = load_resnet_modified(num_input_channels=3)
+            elif model_path.endswith('resnet.pth'):
+                self.net = ReidAppleNet()
+            elif model_path.endswith('resnet_triplet.pth'):
+                self.net = ReidAppleNetTriplet()
+            else:
+                raise ValueError("Unknown model type")
+
             self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
             self.net.load_state_dict(torch.load(model_path), strict=False)
             self.net.to(self.device)
             self.size = (32, 32)
-            self.norm = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
-                    std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
-            ])
+            # reid custom network w/ 5 channels
+            if not model_path.endswith('rgb.pth'):
+                self.norm = transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
+                        std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
+                ])
+            # reid custom network w/ 3 channels
+            else:
+                self.norm = transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize(
+                        mean=[0.485, 0.456, 0.406],  # last 2 values of the vector computed with function
+                        std=[0.229, 0.224, 0.225]),  # mean_and_std_calculator in datasets.py
+                ])
 
     def _preprocess(self, im_crops):
         """
@@ -260,5 +346,15 @@ class Extractor(object):
         im_batch = self._preprocess(im_crops)
         with torch.no_grad():
             im_batch = im_batch.to(self.device)
+            if self.model_name.endswith('triplet'):
+                # add 1 dim to the im_batch to match the input of the network
+                im_batch = im_batch.unsqueeze(0)
+                # transpose img (a, b, c, d, e) => (b, a, c, d, e)
+                im_batch = im_batch.permute(1, 0, 2, 3, 4)
+                # replicate the image to match the input of the network
+                im_batch = im_batch.repeat(1, 3, 1, 1, 1)
             features = self.net(im_batch)
+            if self.model_name.endswith('triplet'):
+                # get only the output from the first network (triplet)
+                features = features[:, :1414]
         return features.cpu().numpy()

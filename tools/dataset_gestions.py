@@ -3,13 +3,16 @@ import json
 import shutil
 import pickle
 import random
+import matplotlib.pyplot as plt
+import torch
 
 import numpy as np
 import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
+import torchvision.transforms as transforms
 
-from utils import *
+from tools.utils import *
 
 
 def refactor_id_frames_extractor():
@@ -558,68 +561,6 @@ def get_crops():
     return crops
 
 
-def generate_crops():
-    """
-    This function generates the crops from the dataset and store them in .png files in a folder called
-    crops_of_Apple_Tracking_db. The crops are from rgb, depth and infrared images for each apple in the dataset
-    """
-    crops = get_crops()
-
-    # get max value of depth and infrared crops
-    max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
-
-    # save the crops in a pickle file in the folder 'crops', create it if it doesn't exist
-    path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db')
-    if not os.path.exists(path_to_crops):
-        os.makedirs(path_to_crops)
-
-    # get the max id of the crops
-    max_id = 0
-    for crop in crops:
-        if crop['id'] > max_id:
-            max_id = crop['id']
-
-    # create test and train folder
-    path_to_test = os.path.join(path_to_crops, 'test')
-    path_to_train = os.path.join(path_to_crops, 'train')
-    if not os.path.exists(path_to_test):
-        os.makedirs(path_to_test)
-    if not os.path.exists(path_to_train):
-        os.makedirs(path_to_train)
-
-    print('generating crops in the folder: ', path_to_crops)
-    for crop in tqdm(crops):
-        # get the video folder name
-        video_folder_name = crop['file_name'].split('_')[:-2]
-        video_folder_name = '_'.join(video_folder_name)
-
-        # get the img path to files
-        img_rgb = cv2.imread(os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
-        img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=max_d)
-        img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=max_i)
-
-        crop_bbox_modified = augment_size_of_bboxes_in_crops(crop['bbox_tlbr'], percentage_to_augment=0.15, size_img=(1080, 1920))
-
-        # crop the images
-        img_rgb = img_rgb[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
-        img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
-        img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
-
-        # if i is multiple of 5, save the crops in the folder 'test'
-        if crop["id"] % 5 == 0:
-            path_to_id = path_to_test
-        else:
-            path_to_id = path_to_train
-
-        # save the image, save the depth and infrared image as a .png file
-        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_C.png')
-        cv2.imwrite(path_to_save, img_rgb)
-        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_D.png')
-        cv2.imwrite(path_to_save, img_d)
-        path_to_save = os.path.join(path_to_id, f'{crop["file_name"]}_{crop["id"]}_I.png')
-        cv2.imwrite(path_to_save, img_i)
-
-
 def generate_csv_from_crops():
     """
     This function generates a csv file with the crops from the dataset. The csv file is in the folder
@@ -652,10 +593,11 @@ def generate_csv_from_crops():
                         f'{crop["id"]}\n')
 
 
-def generate_crops_numpy():
+def generate_crops_numpy(add_D_and_I=True):
     """
     This function generates a numpy file with the crops from the dataset. The numpy file is in the folder
     crops_of_Apple_Tracking_db_numpy.
+    :param add_D_and_I: if True, the numpy file will contain the depth and infrared images. If False, the numpy file
     """
 
     crops = get_crops()
@@ -693,8 +635,11 @@ def generate_crops_numpy():
             img_rgb = cv2.imread(
                 os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
             # normalization numbers computed with compute_max_value_depth_and_infrared_crops(crops)
-            img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
-            img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
+            img_d = None
+            img_i = None
+            if add_D_and_I:
+                img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
+                img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
 
             # augment the bounding boxes by a percentage
             bbox_tlbr = crop['bbox_tlbr']
@@ -702,10 +647,15 @@ def generate_crops_numpy():
 
             # crop the images
             img_rgb = img_rgb[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
-            img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
-            img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+            if add_D_and_I:
+                img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+                img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
 
-            img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
+            if not add_D_and_I:
+                img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2]))
+            else:
+                img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
+
             crops_pickles[crop['id']].append(img)
 
     train_crops = [[] for i in range(max_id + 1)]
@@ -722,32 +672,46 @@ def generate_crops_numpy():
             test_crops[idx] = [crops[i] for i in indexes]
 
     # save the crops in a pickle file, named train and test respectively
-    path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    if add_D_and_I:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    else:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I.pkl')
     with open(path_to_train_crops, 'wb') as f:
         pickle.dump(train_crops, f)
-    path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+
+    if add_D_and_I:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    else:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I.pkl')
     with open(path_to_test_crops, 'wb') as f:
         pickle.dump(test_crops, f)
 
     #redistribute_crops_numpy()
 
 
-def redistribute_crops_numpy():
+def redistribute_crops_numpy(add_D_and_I=False):
     """
     This function redistributes the crops in the train and test numpy files in the folder
     crops_of_Apple_Tracking_db_numpy. Basically puts all the crops in a list with a id as index and the crops as value.
+    :param add_D_and_I: if True, the numpy file with the crops will have the depth and infrared images.
     """
     path_to_crops = os.path.join('../data', 'crops_of_Apple_Tracking_db_numpy')
 
     if not os.path.exists(path_to_crops):
         print('the folder crops_of_Apple_Tracking_db_numpy does not exist')
-        generate_crops()
+        generate_crops_numpy()
 
     # load the crops in a pickle file
-    path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    if add_D_and_I:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    else:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I.pkl')
     with open(path_to_train_crops, 'rb') as f:
         train_crops = pickle.load(f)
-    path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    if add_D_and_I:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    else:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I.pkl')
     with open(path_to_test_crops, 'rb') as f:
         test_crops = pickle.load(f)
 
@@ -775,7 +739,8 @@ def redistribute_crops_numpy():
 def get_info_crops():
     """
     This function gets the information of the crops in the folder crops_of_Apple_Tracking_db_numpy. It gets the
-    percentage of zeros in the depth and infrared images (images that are all 0!)
+    percentage of zeros in the depth and infrared images (images that are all 0!). Also gets the mean of the distance
+    of the images for each video.
     """
 
     crops = get_crops()
@@ -790,6 +755,26 @@ def get_info_crops():
         '175': 0,
         '225': 0,
     }
+    mean_distance_depth = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+    std_distance_depth = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+    mean_distance_infrared = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
+    std_distance_infrared = {
+        '125': 0,
+        '175': 0,
+        '225': 0,
+    }
     total_imgs = {
         '125': 0,
         '175': 0,
@@ -799,11 +784,22 @@ def get_info_crops():
     information = {
         'zeros_in_depth': zeros_in_depth,
         'zeros_in_infrared': zeros_in_infrared,
+        'mean_distance_depth': mean_distance_depth,
+        'std_distance_depth': std_distance_depth,
+        'mean_distance_infrared': mean_distance_infrared,
+        'std_distance_infrared': std_distance_infrared,
         'total_imgs': total_imgs,
     }
 
     print('getting information about the crops...')
     for crop in tqdm(crops):
+        # augment size bbox by percentage
+        crop_bbox_modified = augment_size_of_bboxes_in_crops(crop['bbox_tlbr'], percentage_to_augment=0.15)
+
+        # skip crop if it is outside the bbox of the video (600, 1450)
+        if skip_bbox_if_outside_map(crop_bbox_modified):
+            continue
+
         video_folder_name = crop['file_name'].split('_')[:-2]
         video_folder_name = '_'.join(video_folder_name)
 
@@ -815,8 +811,8 @@ def get_info_crops():
         img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I')
 
         # crop the images
-        img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-        img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+        img_d = img_d[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
+        img_i = img_i[crop_bbox_modified[1]:crop_bbox_modified[3], crop_bbox_modified[0]:crop_bbox_modified[2]]
 
         # if img_d contains all zeros
         if np.sum(img_d) == 0:
@@ -824,7 +820,26 @@ def get_info_crops():
         # if img_i contains all zeros
         if np.sum(img_i) == 0:
             zeros_in_infrared[distance] += 1
+        # update num total of images
         information['total_imgs'][distance] += 1
+
+        # compute mean and std for each distance but skipping zeros in the depth and infrared images
+        # compute the mean distance
+        if np.sum(img_d != 0) != 0:
+            mean_distance_depth[distance] = (mean_distance_depth[distance] + np.sum(img_d) / np.sum(img_d != 0)) / 2
+        if np.sum(img_i != 0) != 0:
+            mean_distance_infrared[distance] = (mean_distance_infrared[distance] + np.sum(img_i) / np.sum(img_i != 0)) / 2
+        # compute the std distance but skipping zeros in the depth and infrared images
+        if np.sum(img_d != 0) != 0:
+            # get the non zero values of imd_d
+            non_zero_values = img_d[img_d != 0]
+            # compute the std
+            std_distance_depth[distance] = (std_distance_depth[distance] + np.std(non_zero_values)) / 2
+        if np.sum(img_i != 0) != 0:
+            # get the non zero values of imd_i
+            non_zero_values = img_i[img_i != 0]
+            # compute the std
+            std_distance_infrared[distance] = (std_distance_infrared[distance] + np.std(non_zero_values)) / 2
 
     print(f'zeros in depth 125 (%): {information["zeros_in_depth"]["125"] / information["total_imgs"]["125"] * 100}')
     print(f'zeros in depth 175 (%): {information["zeros_in_depth"]["175"] / information["total_imgs"]["175"] * 100}')
@@ -832,6 +847,87 @@ def get_info_crops():
     print(f'zeros in infrared 125 (%): {information["zeros_in_infrared"]["125"] / information["total_imgs"]["125"] * 100}')
     print(f'zeros in infrared 175 (%): {information["zeros_in_infrared"]["175"] / information["total_imgs"]["175"] * 100}')
     print(f'zeros in infrared 225 (%): {information["zeros_in_infrared"]["225"] / information["total_imgs"]["225"] * 100}')
+    print(f'mean distance depth 125: {information["mean_distance_depth"]["125"]}')
+    print(f'mean distance depth 175: {information["mean_distance_depth"]["175"]}')
+    print(f'mean distance depth 225: {information["mean_distance_depth"]["225"]}')
+    print(f'std distance depth 125: {information["std_distance_depth"]["125"]}')
+    print(f'std distance depth 175: {information["std_distance_depth"]["175"]}')
+    print(f'std distance depth 225: {information["std_distance_depth"]["225"]}')
+    print(f'mean distance infrared 125: {information["mean_distance_infrared"]["125"]}')
+    print(f'mean distance infrared 175: {information["mean_distance_infrared"]["175"]}')
+    print(f'mean distance infrared 225: {information["mean_distance_infrared"]["225"]}')
+    print(f'std distance infrared 125: {information["std_distance_infrared"]["125"]}')
+    print(f'std distance infrared 175: {information["std_distance_infrared"]["175"]}')
+    print(f'std distance infrared 225: {information["std_distance_infrared"]["225"]}')
+
+
+def stack_imgs_for_embeddings(visualize_images=False):
+    """
+    This function stacks the RGB depth and infrared images of the crops from the variable ids. It saves the stacked
+    images in the variable imgs_stacked in order to create the embeddings by doing inference to a model in another
+    function.
+    :param visualize_images: if True, the stacked images will be visualized.
+    :return:
+    imgs_stacked - a list of the stacked images, with the same index as the ids.
+    ids - a list of the ids of the crops.
+    id_map - a list that maps the id of the crops to the index of the stacked images.
+    """
+    imgs_stacked = None
+    crops = get_crops()
+    ids = [1, 100, 200, 300, 400, 500, 600, 700, 900, 1200, 1400]  # get random ids to plot
+    id_map = []
+    for crop in crops:
+        if crop['id'] in ids:
+            bbox = crop['bbox_tlbr']
+            crop['bbox_tlbr'] = augment_size_of_bboxes_in_crops(bbox)
+
+            video_folder_name = crop['file_name'].split('_')[:-2]
+            video_folder_name = '_'.join(video_folder_name)
+
+            # get the img path to files
+            img_rgb = cv2.imread(
+                os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
+            # normalization numbers computed with compute_max_value_depth_and_infrared_crops(crops)
+            img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
+            img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
+
+            img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+            img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+            img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
+
+            img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
+
+            # transformations pytorch
+            transformations = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Resize((32, 32)),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
+                    std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
+            ])
+            # transpose the images to the correct format (a, b, c) => (b, c, a)
+            img = img.transpose((1, 2, 0))
+
+            if visualize_images:
+                title = str(crop['id']) + '_' + crop['file_name']
+                cv2.imshow(title, img_rgb[:, :, :3])
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+
+            # transform the img
+            img = transformations(img)
+
+            # stack the img (repeated 3 times because it is the input of the model)
+            if imgs_stacked is None:
+                imgs_stacked = torch.stack([img.repeat(3, 1, 1, 1)])
+            else:
+                imgs_stacked = torch.cat([imgs_stacked, img.repeat(3, 1, 1, 1).unsqueeze(0)])
+
+            id_map.append(crop['id'])
+
+    return imgs_stacked, id_map, ids
+
 
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
@@ -842,12 +938,25 @@ if __name__ == "__main__":
     #    path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
     # generate_yolo_labels_and_ids()
     # extract_frames_zed_camera()
-    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162','210928_165030_k_r2_w_015_125_162_209_50_D',
-    #                              show_img=True)
+    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162', '210928_165030_k_r2_w_015_125_162_209_50_D', show_img=True)
     # generate_crops()
-    generate_crops_numpy()
+    # generate_crops_numpy()
     # generate_csv_from_crops()
     # compute_max_value_depth_and_infrared_crops()
     # redistribute_crops_numpy()
     get_info_crops()
+
+    """
+    idx = 15643
+    positions = []
+    for i in range(10000):
+        idx_img = int(np.random.normal(idx, 300)) # max poma aprox 50 frames
+        positions.append(idx_img)
+    # generate histogram and plot it
+    plt.hist(positions, bins=100)
+    # title
+    plt.title('Histogram of the positions of the crops for idx = ' + str(idx) + ' (mean = ' + str(np.mean(positions)) +
+              ')' + 'std = ' + str(np.std(positions)))
+    plt.show()
+    """
     print('finished')

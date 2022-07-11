@@ -51,6 +51,39 @@ class AppleCrops(Dataset):
         return img, label
 
 
+class AppleCropsRGB(Dataset):
+    def __init__(self, root_path, split, transform=None):
+        self.root_path = root_path
+        self.split = split
+        self.transform = transform
+
+        # load pickle file it is a list of lists
+        with open(os.path.join(root_path, 'crops_of_Apple_Tracking_db_numpy', f'{split}_crops_without_D_and_I.pkl'),
+                  'rb') as f:
+            self.files = pickle.load(f)
+
+        for idx_img, (img, idx) in enumerate(self.files):
+            # transpose: (a, b, c) => (c, b, a)
+            img = img.transpose()
+            self.files[idx_img] = (img, idx)
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        # idx must be lower than __len__
+        if idx >= len(self.files):
+            raise IndexError('Index out of range')
+
+        # load the image and the label
+        img, label = self.files[idx]
+
+        if self.transform:
+            img = self.transform(img)
+
+        return img, label
+
+
 def mean_and_std_calculator(root_path='../../data'):
     """
     This function computes the mean and std of the dataset for both splits, train and test
@@ -147,18 +180,15 @@ class AppleCropsTriplet(Dataset):
         anchor_img, label_anchor = self.files[idx]
         # select an image in files that is not the anchor image but has the same label
         while True:
-            """
-            # acotate the search to make it faster!
-            search_idx_max = idx + 100
-            if search_idx_max >= len(self.files):
-                search_idx_max = len(self.files) - 1
-            search_idx_min = idx - 100
-            if search_idx_min < 0:
-                search_idx_min = 0
+            # select a random number from a gaussian pdf with mean idx and std 1 (we give more weight to consecutive frames)
+            idx_img = int(np.random.normal(idx, 300)) # std 100 means that every 100 crops, a new frame is processed (aprox)
+            if idx_img < 0 or idx_img >= len(self.files):
+                continue
+            # todo: implementar sistema que si coje la misma imagen, se repite. Maximo 10 veces porque sino se queda dentro del bucle si solo hay 1 imagen del crop.
 
-            idx_img = np.random.randint(search_idx_min, search_idx_max)
-            """
-            idx_img = np.random.randint(0, len(self.files))
+            # select img randomly from the list of images
+            #idx_img = np.random.randint(0, len(self.files))
+
             # if the apple has only one crop => problem
             # if idx_img != idx:
             positive_img, label_pos = self.files[idx_img]
@@ -185,6 +215,7 @@ class AppleCropsTriplet(Dataset):
 
 if __name__ == "__main__":
     # to test the datasets if they are working
+    """
     db = AppleCrops(root_path='../../data',
                     split='train',
                     transform=None)
@@ -195,6 +226,10 @@ if __name__ == "__main__":
     print(f'ir: mean:{mean[4]/255}, std:{std[4]/255}')
 
     db_triplet = AppleCropsTriplet(root_path='../../data',
+                                   split='train',
+                                   transform=None)
+    """
+    db_rgb = AppleCropsRGB(root_path='../../data',
                                    split='train',
                                    transform=None)
 

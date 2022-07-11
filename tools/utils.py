@@ -191,7 +191,7 @@ def filter_detections_by_size(detections, detection_file):
     return detections
 
 
-def augment_size_of_bboxes(detections, size_to_augment):
+def augment_size_of_bboxes(detections, percentage_to_augment=0.075, size_img=(1080, 1920)):
     """
     Augment the size of the bboxes. gets the detections in a list format ('bbox', 1) and returns the detections in a
     list format ('bbox', 1) with the detections enlarged. the size to augment is defined thanks to the size_to_augment
@@ -205,16 +205,36 @@ def augment_size_of_bboxes(detections, size_to_augment):
         # convert tuple into list
         detection = list(detection)
 
+        height = detection[3] - detection[1]
+        width = detection[2] - detection[0]
+
         # augment the size of the bbox
-        detection[0] -= size_to_augment
-        detection[1] -= size_to_augment
-        detection[2] += size_to_augment
-        detection[3] += size_to_augment
+        # augment the size of the bbox
+        detection[0] -= percentage_to_augment * width
+        if detection[0] < 0:
+            detection[0] = 0
+        detection[1] -= percentage_to_augment * height
+        if detection[1] < 0:
+            detection[1] = 0
+
+        detection[2] += percentage_to_augment * width
+        if detection[2] > size_img[0]:
+            detection[2] = int(size_img[0])
+
+        detection[3] += percentage_to_augment * height
+        if detection[3] > size_img[1]:
+            detection[3] = int(size_img[1])
+
+        # convert the all the elements to int except the last one (4)
+        detection_augm = [int(element) for element in detection[:-1]]
+
+        # add the last element
+        detection_augm.append(detection[-1])
 
         # convert list into tuple
-        detection = tuple(detection)
+        detection_augm = tuple(detection_augm)
 
-        detections_augmented.append(detection)
+        detections_augmented.append(detection_augm)
 
     return detections_augmented
 
@@ -266,6 +286,22 @@ def search_in_dataset_an_image_from_yolo_dataset(framename):
                     path = path_rgb[:-5]
 
                     return path
+
+
+def skip_bbox_if_outside_map(bbox_tlbr, top_limit=600, bottom_limit=1450):
+    """
+    Skip the bbox if it is outside the map. gets the bbox in tlbr format and returns True if the bbox is outside the map
+    and False otherwise.
+    :param bbox_tlbr: the bbox in tlbr format
+    :param top_limit: the top limit of the map
+    :param bottom_limit: the bottom limit of the map
+    :return: True if the bbox is outside the map and False otherwise
+    """
+    skip = False
+    if bbox_tlbr[1] > bottom_limit or bbox_tlbr[3] < top_limit:
+        skip = True
+
+    return skip
 
 if __name__ == '__main__':
     compute_sizes_all_gts()

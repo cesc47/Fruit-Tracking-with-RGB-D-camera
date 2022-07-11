@@ -1,4 +1,5 @@
 import motmetrics as mm
+import argparse
 
 from sort import sort
 from bytetrack import byte_tracker
@@ -48,10 +49,10 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
 
         elif tracker_type == 'deepsort':
             path = search_in_dataset_an_image_from_yolo_dataset(frame_name)
-            # use default network deepsort
-            if reid is None:
+            # use default network deepsort or custom rgb
+            if reid is None or reid.endswith('rgb'):
                 trackers = tracker.update(np.array(detections), img_file_name=path+'C.png')
-            # use reid network deepsort: custom network created by me
+            # use reid network deepsort: custom network created by me 5 channels
             else:
                 trackers = tracker.update(np.array(detections), img_file_name=path)
         else:
@@ -164,7 +165,7 @@ def read_from_yolo(path, filter_detections=True, augment_bbox_size=5, ground_tru
             if filter_detections:
                 detections = filter_detections_by_size(detections, detections_file)
 
-            detections = augment_size_of_bboxes(detections, size_to_augment=augment_bbox_size)
+            detections = augment_size_of_bboxes(detections)
 
             # add detections to all_detections list
             all_results.append(detections)
@@ -322,30 +323,54 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, p
                                           det_centers=det_centers,
                                           tracker_evaluation=tracker_evaluation)
 
-    # print the results (last video)
-    results, metrics = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
+    if tracker_evaluation:
+        # print the results (last video)
+        results, metrics = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
 
-    # append the results (last video) to the list of results
-    all_tracking_results.append([results, anterior_video_id])
+        # append the results (last video) to the list of results
+        all_tracking_results.append([results, anterior_video_id])
 
-    # evaluate results of the sequences (only HOTA metric)
-    hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
+        # evaluate results of the sequences (only HOTA metric)
+        hota_metric_results = evaluate_sequences_hota_metric(all_tracking_predictions, ground_truths)
 
-    # save and visualize results if necessary/requested
-    save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
-                       partition, metrics, visualize_results, all_tracking_predictions, ground_truths, reid)
+        # save and visualize results if necessary/requested
+        save_and_visualize(save_results, all_tracking_results, hota_metric_results, dataset_name, exp_name, tracker_type,
+                           partition, metrics, visualize_results, all_tracking_predictions, ground_truths, reid)
 
     return all_tracking_predictions, all_tracking_results
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--dataset_name', type=str, help='name of the dataset', default='Apple_Tracking_db_yolo')
+    parser.add_argument('--exp_name', type=str, help='name of the experiment where we have done inference in yolo', default='yolov5x')
+    parser.add_argument('--tracker_type', type=str, help='type of tracker (e.g. sort, bytetrack, deepsort)', required=True)
+    parser.add_argument('--reid', type=str, help='use reid network to track. If None, no reid network is used or use '
+                                                 'reid by default in deepsort case.', default=None)
+    parser.add_argument('--partition', type=str, help='partition where the results are computed => test, train or val. '
+                                                      'careful that this relates to what db you have done inference in '
+                                                      'yolo (name of the experiment)', default='test')
+    parser.add_argument('--tracker_evaluation', type=bool, help='if True, the metrics are computed for the tracker', default=False)
+    parser.add_argument('--visualize_results', type=bool, help='if True, the results are visualized in the images', default=False)
+    parser.add_argument('--save_results', type=bool, help='if True, the results are saved in a csv file', default=False)
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    # call the main function that does the tracking
+    track_yolo_results(dataset_name=args.dataset_name,
+                       exp_name=args.exp_name,
+                       tracker_type=args.tracker_type,
+                       reid=args.reid,
+                       partition=args.partition,
+                       tracker_evaluation=args.tracker_evaluation,
+                       visualize_results=args.visualize_results,
+                       save_results=args.save_results)
+
+
 if __name__ == '__main__':
-    # todo: fer un main on es puguin parsejar aquests arguments per a que quan es pengi al git quedi molt més sencer
-    tracking_predictions, tracking_results = track_yolo_results(dataset_name='Apple_Tracking_db_yolo',
-                                                                exp_name='yolov5x',
-                                                                tracker_type='deepsort',
-                                                                reid='reid_applenet',
-                                                                #reid=None,
-                                                                partition='test',
-                                                                tracker_evaluation=True,
-                                                                visualize_results=True,
-                                                                save_results=True)
+    main()

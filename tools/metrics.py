@@ -61,6 +61,9 @@ def tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_
 
         return summary, metrics
 
+    else:
+        return None, None
+
 
 def get_num_ids_from_sequence(sequence):
     """
@@ -348,7 +351,8 @@ def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker
         metrics.append('hota')
         writer.writerow(metrics)
         for (result, _), hota, video_name, nframes in zip(results, results_hota, videos_and_frames["video_id"], videos_and_frames["nframes"]):
-            to_write = [value[0] for _, value in result.items()]
+            # with 4 decimal places
+            to_write = [round(value[0], 4) for _, value in result.items()]
             to_write.insert(0, video_name)
             to_write.insert(1, nframes)
             to_write.append(hota['HOTA'][0])
@@ -356,6 +360,7 @@ def save_tracking_results(results, results_hota, dataset_name, exp_name, tracker
 
     compute_mean_for_metrics(path_file, total_frames)
     delete_duplicated_row(path_file)
+
 
 def compute_frames_for_partition(partition):
     """
