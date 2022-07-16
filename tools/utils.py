@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from tools.read_segmentation import read_segmentation
+from tqdm import tqdm
 
 GLOBAL_PATH_DB = '../data/Apple_Tracking_db'
 
@@ -277,6 +278,54 @@ def augment_size_of_bboxes_in_crops(bbox_tlbr, percentage_to_augment=0.15, size_
     return [int(x) for x in bbox_tlbr]
 
 
+def reduce_size_of_bbox(detection, percentage_to_reduce=0.075, size_img=(1080, 1920)):
+    """
+    Reduce the size of a bbox according to a percentage to reduce (must match the percentage in the
+    augment_size_of_bboxes)
+    :param detection: the detection in a list format (bbox)
+    :param percentage_to_reduce: the percentage to reduce
+    :param size_img: the size of the image
+    :return: the detection in a list format (bbox) with the size reduced
+    """
+    height = detection[3] - detection[1]
+    width = detection[2] - detection[0]
+
+    # augment the size of the bbox
+    # augment the size of the bbox
+    detection[0] += percentage_to_reduce * width
+    if detection[0] < 0:
+        detection[0] = 0
+    detection[1] += percentage_to_reduce * height
+    if detection[1] < 0:
+        detection[1] = 0
+
+    detection[2] -= percentage_to_reduce * width
+    if detection[2] > size_img[0]:
+        detection[2] = int(size_img[0])
+
+    detection[3] -= percentage_to_reduce * height
+    if detection[3] > size_img[1]:
+        detection[3] = int(size_img[1])
+
+    # convert the all the elements to int except the last one (4)
+    detection_reduced = [int(element) for element in detection]
+
+    return detection_reduced
+
+
+def reduce_size_of_bboxes_in_tracking_results(all_tracking_results, percentage_to_reduce=0.075):
+    """
+    Reduce the size of the bboxes in the tracking predictions.
+    :param all_tracking_results: the tracking predictions in a dict format
+    :param percentage_to_reduce: the percentage to reduce the size of the bboxes
+    :return: the tracking predictions in a dict format with the bboxes reduced
+    """
+    print('reducing the size of the bboxes')
+    for idx_frame, tracking_results in tqdm(enumerate(all_tracking_results)):
+        for idx_bbox, bbox in enumerate(tracking_results['bboxes']):
+            all_tracking_results[idx_frame]['bboxes'][idx_bbox] = reduce_size_of_bbox(bbox, percentage_to_reduce)
+
+
 def search_in_dataset_an_image_from_yolo_dataset(framename):
     """
     Search in the dataset an image from the yolo dataset. gets the framename and returns the path of the image.
@@ -310,6 +359,21 @@ def skip_bbox_if_outside_map(bbox_tlbr, top_limit=600, bottom_limit=1450):
         skip = True
 
     return skip
+
+
+def order_detections_folder_nums(path):
+    """
+    Order the detections in the folder. gets the path of the folder and returns the number of the detections ordered.
+    :param path: the path of the folder
+    :return: the number of the detections ordered
+    """
+    numbers = [int(file.split('_')[-2]) for file in os.listdir(path)]
+    numbers.sort()
+    return numbers
+
+
+
+
 
 if __name__ == '__main__':
     compute_sizes_all_gts()

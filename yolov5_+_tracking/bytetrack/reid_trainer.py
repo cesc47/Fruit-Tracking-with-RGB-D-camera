@@ -15,8 +15,9 @@ import torch.optim as optim
 from os import path
 from torch.optim import lr_scheduler
 
-from reid_net import ReidAppleNet, ReidAppleNetTriplet, load_resnet_modified, ReidAppleNetTripletResNet
-from datasets import AppleCrops, AppleCropsTriplet, AppleCropsRGB
+from reid_net import ReidAppleNet, ReidAppleNetTriplet, load_resnet_modified, ReidAppleNetTripletResNet, \
+    ReidAppleNetTripletResNetRGB
+from datasets import AppleCrops, AppleCropsTriplet, AppleCropsRGB, AppleCropsTripletRGB
 from train import fit, fit_triplet
 
 from pytorch_metric_learning import distances, losses, miners, reducers
@@ -29,12 +30,13 @@ def main():
     wandb.init(project="reid_training", entity="cesc47")
 
     # type of network: reid or reid_triplet
-    network = 'reid_resnet_triplet'
+    network = 'reid_resnet_triplet_rgb'
 
     # raise error if network is not reid or reid_triplet
-    if network not in ['reid', 'reid_triplet', 'reid_resnet', 'reid_resnet_rgb', 'reid_resnet_triplet']:
-        raise ValueError('network must be either reid, reid_triplet, reid_resnet, reid_resnet_rgb or '
-                         'reid_resnet_triplet')
+    if network not in ['reid', 'reid_triplet', 'reid_resnet', 'reid_resnet_rgb', 'reid_resnet_triplet',
+                       'reid_resnet_triplet_rgb']:
+        raise ValueError('network must be either reid, reid_triplet, reid_resnet, reid_resnet_rgb, reid_resnet_triplet_rgb '
+                         'or reid_resnet_triplet')
 
     # cuda management
     device = 'cuda'
@@ -61,6 +63,8 @@ def main():
         model_id = 'reid_applenet_resnet_rgb'
     elif network == 'reid_resnet_triplet':
         model_id = 'reid_applenet_resnet_triplet'
+    elif network == 'reid_resnet_triplet_rgb':
+        model_id = 'reid_applenet_resnet_triplet_rgb'
     else:
         model_id = 'reid_applenet_triplet'
 
@@ -71,10 +75,11 @@ def main():
     # the necessary transformations to work with the dataset:
     # Often, you want values to have a mean of 0 and a standard deviation of 1 like the standard normal distribution.
     # This is achieved by mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) in rgb images.
-    if not network == 'reid_resnet_rgb':
+    if not (network == 'reid_resnet_rgb' or network == 'reid_resnet_triplet_rgb'):
         transformations = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize((32, 32)),
+            # todo: cambiar normalizacion, calcular nuevo mean and std
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406, 0.034, 0.036],   # last 2 values of the vector computed with function
                 std=[0.229, 0.224, 0.225, 0.010, 0.008]),   # mean_and_std_calculator in datasets.py
@@ -104,6 +109,13 @@ def main():
         test_db = AppleCropsRGB(root_path=root_path,
                                 split='test',
                                 transform=transformations)
+    elif network == 'reid_resnet_triplet_rgb':
+        train_db = AppleCropsTripletRGB(root_path=root_path,
+                                        split='train',
+                                        transform=transformations)
+        test_db = AppleCropsTripletRGB(root_path=root_path,
+                                       split='test',
+                                       transform=transformations)
 
     else:
         train_db = AppleCropsTriplet(root_path=root_path,
@@ -135,6 +147,8 @@ def main():
         model = load_resnet_modified(num_input_channels=3)
     elif network == 'reid_resnet_triplet':
         model = ReidAppleNetTripletResNet()
+    elif network == 'reid_resnet_triplet_rgb':
+        model = ReidAppleNetTripletResNetRGB()
     else:
         model = ReidAppleNetTriplet()
 

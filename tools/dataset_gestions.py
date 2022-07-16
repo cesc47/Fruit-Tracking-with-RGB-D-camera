@@ -179,6 +179,35 @@ def rotate_segmentation():
                 json.dump(annotations, f)
 
 
+def delete_depth_maps(path):
+    """
+    delete all depth maps in the path. This is used to clean up the directory before running the code.
+    :param path: path to the directory
+    """
+    for video in os.listdir(path):
+        for frame in os.listdir(os.path.join(path, video)):
+            if frame.endswith(".mat"):
+                os.remove(os.path.join(path, video, frame))
+
+
+def rotate_imgs(path):
+    """
+    Rotate the images in the path, 90 degrees counterclockwise.
+    :param path: path to the images
+    """
+    for video in os.listdir(path):
+        for file in os.listdir(os.path.join(path, video)):
+            if file.endswith('.png'):
+                # read the image
+                img = cv2.imread(os.path.join(path, video, file))
+                # rotate the image. can be rotated clockwise or counterclockwise
+                img = cv2.rotate(img, cv2.cv2.ROTATE_90_COUNTERCLOCKWISE)
+                # delete the file
+                os.remove(os.path.join(path, video, file))
+                # save the image rotated in the same folder
+                cv2.imwrite(os.path.join(path, video, file), img)
+
+
 def generate_yolo_labels():
     """
     This function generates the labels for the yolo format. It takes into account all the videos on the dataset. It
@@ -467,6 +496,8 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
     if normalization is not None:
         # divide the image by the normalization factor, as type float
         img = img / normalization
+        # if there are values greater than 1, set them to 1
+        img[img > 1] = 1
 
     if show_img:
         # divide all img values by the max value of the img to get the values between 0 and 255
@@ -520,7 +551,7 @@ def compute_max_value_depth_and_infrared_crops(crops):
     return max_d, max_i
 
 
-def get_crops():
+def get_crops(skip_crops=True):
     """
     This function extracts the crops from the dataset. Returns a list of dicts with the crops where for every crop:
     {
@@ -553,12 +584,27 @@ def get_crops():
                         # get the coordinates of the bounding box
                         x, y, w, h = float(bbox[2]), float(bbox[3]), float(bbox[4]), float(bbox[5])
                         x_min, y_min, x_max, y_max = convert_bbox_from_yolo_format(x, y, w, h)
+                        # skip crop if outside the image
+                        if skip_bbox_if_outside_map([x_min, y_min, x_max, y_max], top_limit=600, bottom_limit=1450) \
+                                and skip_crops:
+                            continue
                         crop = {
                             'file_name': file_name,
                             'id': id,
                             'bbox_tlbr': [x_min, y_min, x_max, y_max]
                         }
                         crops.append(crop)
+    # ids list
+    ids = [crop['id'] for crop in crops]
+    # for the ids that appear only one time, delete the crop
+    for id in ids:
+        if ids.count(id) == 1:
+            # get the index of the crop with the id
+            index = ids.index(id)
+            # delete the crop
+            crops.pop(index)
+            # delete the index from the ids list
+            ids.pop(index)
 
     return crops
 
@@ -601,8 +647,7 @@ def generate_crops_numpy(add_D_and_I=True):
     crops_of_Apple_Tracking_db_numpy.
     :param add_D_and_I: if True, the numpy file will contain the depth and infrared images. If False, the numpy file
     """
-
-    crops = get_crops()
+    crops = get_crops(skip_crops=True)
 
     # get max value of depth and infrared crops
     # max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
@@ -640,8 +685,8 @@ def generate_crops_numpy(add_D_and_I=True):
             img_d = None
             img_i = None
             if add_D_and_I:
-                img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
-                img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
+                img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=4000)
+                img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=2000)
 
             # augment the bounding boxes by a percentage
             bbox_tlbr = crop['bbox_tlbr']
@@ -691,7 +736,7 @@ def generate_crops_numpy(add_D_and_I=True):
     #redistribute_crops_numpy()
 
 
-def redistribute_crops_numpy(add_D_and_I=False):
+def redistribute_crops_numpy(add_D_and_I=True):
     """
     This function redistributes the crops in the train and test numpy files in the folder
     crops_of_Apple_Tracking_db_numpy. Basically puts all the crops in a list with a id as index and the crops as value.
@@ -716,6 +761,20 @@ def redistribute_crops_numpy(add_D_and_I=False):
         path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I.pkl')
     with open(path_to_test_crops, 'rb') as f:
         test_crops = pickle.load(f)
+
+    # delete the crops and get the indexes of the crops deleted
+    indexes_deleted = []
+    for idx, crops in enumerate(train_crops):
+        if len(crops) < 6:
+            indexes_deleted.append(idx)
+    # delete the indexes of the crops deleted
+    train_crops = [train_crops[i] for i in range(len(train_crops)) if i not in indexes_deleted]
+    test_crops = [test_crops[i] for i in range(len(test_crops)) if i not in indexes_deleted]
+
+    for idx, train_crop in enumerate(train_crops):
+        # if the crop is empty print the index of the crop
+        if len(train_crop) == 1:
+            print(idx)
 
     # for each item in the list of lists, assign the index of the list and the item, as a tuple
     train = []
@@ -940,13 +999,14 @@ if __name__ == "__main__":
     #    path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
     # generate_yolo_labels_and_ids()
     # extract_frames_zed_camera()
-    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162', '210928_165030_k_r2_w_015_125_162_209_50_D', show_img=True)
+    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162', '210928_165030_k_r2_w_015_125_162_209_50_D',
+    # show_img=True)
     # generate_crops()
-    # generate_crops_numpy()
+    # generate_crops_numpy(False)
     # generate_csv_from_crops()
     # compute_max_value_depth_and_infrared_crops()
-    # redistribute_crops_numpy()
-    get_info_crops()
+    # redistribute_crops_numpy(False)
+    # get_info_crops()
 
     """
     idx = 15643

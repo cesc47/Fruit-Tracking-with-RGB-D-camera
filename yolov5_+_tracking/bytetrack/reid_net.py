@@ -64,16 +64,13 @@ class ReidAppleNet(nn.Module):
     """
     Implementation of a custom NN to extract the features of the images (re-id network)
     """
-    def __init__(self, num_classes=1414, reid=False):
+    def __init__(self, num_classes=914, reid=False):
         super(ReidAppleNet, self).__init__()
         # 3 128 64
         self.conv = nn.Sequential(
             nn.Conv2d(5, 64, 3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            # nn.Conv2d(32,32,3,stride=1,padding=1),
-            # nn.BatchNorm2d(32),
-            # nn.ReLU(inplace=True),
             nn.MaxPool2d(3, 2, padding=1),
         )
         # 32 64 32
@@ -83,10 +80,8 @@ class ReidAppleNet(nn.Module):
         # 64 32 16
         self.layer3 = make_layers(128, 256, 2, True)
         # 128 16 8
-        self.layer4 = make_layers(256, 1414, 2, True)
-        #self.layer4 = make_layers(256, 512, 2, True)
+        self.layer4 = make_layers(256, num_classes, 2, True)
         # 256 8 4
-        # todo: aquí se puede mirar de dejar un vector mas grande
         self.avgpool = nn.AvgPool2d((2, 2), 1)
         # 256 1 1
         self.reid = reid
@@ -139,9 +134,29 @@ class ReidAppleNetTripletResNet(nn.Module):
     Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
     input and outputs.
     """
-    def __init__(self, num_classes=1414):
+    def __init__(self, num_classes=914):
         super(ReidAppleNetTripletResNet, self).__init__()
         self.reid_apple_net = load_resnet_modified(num_output_channels=num_classes)
+
+    def forward(self, data):
+        embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
+        embedded_y = self.reid_apple_net(data[:, 1, :, :, :])
+        embedded_z = self.reid_apple_net(data[:, 2, :, :, :])
+
+        # concatenate the three tensors
+        embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+
+        return embedded
+
+
+class ReidAppleNetTripletResNetRGB(nn.Module):
+    """
+    Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
+    input and outputs.
+    """
+    def __init__(self, num_classes=914):
+        super(ReidAppleNetTripletResNetRGB, self).__init__()
+        self.reid_apple_net = load_resnet_modified(num_input_channels=3, num_output_channels=num_classes)
 
     def forward(self, data):
         embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
@@ -176,7 +191,7 @@ def modify_input_resnet(model, num_input_channels=5):
     model.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
 
-def modify_output_resnet(model, num_output_channels=1414):
+def modify_output_resnet(model, num_output_channels=914):
     """
     Modify the output of the resnet model.
     :param model: the resnet model
@@ -188,7 +203,7 @@ def modify_output_resnet(model, num_output_channels=1414):
     return model
 
 
-def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=1414):
+def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=914):
     """
     Changing a resnet to extract the features of the images (re-id network)
     Load a pretrained resnet model. The model name should be one of the following:
@@ -265,7 +280,6 @@ def infer_batch(network, modelname, data, fmap=True):
                 network = torch.nn.Sequential(*(list(network.children())[:-2])) # delete fc and avg pool
             elif modelname == 'reid_applenet':
                 network = torch.nn.Sequential(*(list(network.children())[:-2])) # delete fc and avg pool
-            # todo: no tengo claro como hay que pasarle los datos para que me de el feature map
             elif modelname == 'reid_applenet_triplet' or modelname == 'reid_applenet_resnet_triplet':
                 network = network
             else:

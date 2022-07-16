@@ -11,6 +11,7 @@ from tqdm import tqdm
 import pickle
 from torch.utils.data import Dataset
 import numpy as np
+from tools.visualization import plot_hist
 import torch
 
 
@@ -181,6 +182,17 @@ class AppleCropsTriplet(Dataset):
             self.files[idx][0][:, :, 3] *= 255
             self.files[idx][0][:, :, 4] *= 255
 
+        # get the maximum id of the files
+        ids = [idx for _, idx in self.files]
+        self.max_id = max(ids)
+
+        # regorganize crops by id
+        self.files_by_id = []
+        for idx in range(self.max_id + 1):
+            self.files_by_id.append([])
+        for idx, file in enumerate(self.files):
+            self.files_by_id[file[1]].append(file[0])
+
     def __len__(self):
         return len(self.files)
 
@@ -191,31 +203,112 @@ class AppleCropsTriplet(Dataset):
 
         # load the anchor image and the label
         anchor_img, label_anchor = self.files[idx]
-        # select an image in files that is not the anchor image but has the same label
-        while True:
-            # select a random number from a gaussian pdf with mean idx and std 1 (we give more weight to consecutive frames)
-            idx_img = int(np.random.normal(idx, 300)) # std 100 means that every 100 crops, a new frame is processed (aprox)
-            if idx_img < 0 or idx_img >= len(self.files):
-                continue
-
-            # todo: implementar sistema que si coje la misma imagen, se repite. Maximo 10 veces porque sino se queda dentro del bucle si solo hay 1 imagen del crop.
-
-            # select img randomly from the list of images
-            #idx_img = np.random.randint(0, len(self.files))
-
-            # if the apple has only one crop => problem
-            # if idx_img != idx:
-            positive_img, label_pos = self.files[idx_img]
-            if label_pos == label_anchor:
+        # get the list of images with the same label as the anchor
+        positive_imgs = self.files_by_id[label_anchor]
+        # get the location of the anchor image in the list of images with the same label
+        for idx, positive_img in enumerate(positive_imgs):
+            if np.array_equal(positive_img, anchor_img):
+                idx_anchor = idx
                 break
 
-        # select an image in files that is not of the same label as the anchor and the positive image
+        # -------------- to show an example, experiment -----------------
+        plot_hist(idx_anchor, positive_imgs, plot_histogram_example=False)
+        # -------------- to show an example, experiment -----------------
+
+        # POSITIVE LOOP
+        # select an image following a gaussian distribution with mean idx_anchor and std 1. if idx_anchor is chosen,
+        # the next image is selected.
         while True:
-            idx_img = np.random.randint(0, len(self.files))
-            if idx_img != idx:
-                negative_img, label_neg = self.files[idx_img]
-                if label_neg != label_anchor:
-                    break
+            idx_img = int(np.random.normal(idx_anchor, 3))  # std of gaussian is 3 frames
+            if 0 <= idx_img < len(positive_imgs) and idx_img != idx_anchor:
+                break
+        positive_img = positive_imgs[idx_img]
+
+        # NEGATIVE LOOP
+        while True:
+            idx_negative = np.random.randint(0, len(self.files))
+            negative_img, label_neg = self.files[idx_negative]
+            if label_anchor != label_neg:
+                break
+
+        if self.transform:
+            anchor_img = self.transform(anchor_img)
+            positive_img = self.transform(positive_img)
+            negative_img = self.transform(negative_img)
+
+        triplet_imgs = anchor_img, positive_img, negative_img
+
+        return triplet_imgs, label_anchor
+
+
+# create custom dataset pytorch, that loads the images from the folder. images are rgb, d and I => Triplet
+class AppleCropsTripletRGB(Dataset):
+    """
+    Custom class for the dataset, Apple crops are crops of the apple from the apple tracking dataset (rgb, d, i), to
+    use in the training of a triplet network.
+    """
+    def __init__(self, root_path, split, transform=None):
+        self.root_path = root_path
+        self.split = split
+        self.transform = transform
+
+        # load pickle file it is a list of lists
+        with open(os.path.join(root_path, 'crops_of_Apple_Tracking_db_numpy', f'{split}_crops_without_D_and_I.pkl'), 'rb') as f:
+            self.files = pickle.load(f)
+
+        for idx_img, (img, idx) in enumerate(self.files):
+            # transpose: (a, b, c) => (c, b, a)
+            img = img.transpose()
+            self.files[idx_img] = (img, idx)
+
+        # get the maximum id of the files
+        ids = [idx for _, idx in self.files]
+        self.max_id = max(ids)
+
+        # regorganize crops by id
+        self.files_by_id = []
+        for idx in range(self.max_id + 1):
+            self.files_by_id.append([])
+        for idx, file in enumerate(self.files):
+            self.files_by_id[file[1]].append(file[0])
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        # idx must be lower than __len__
+        if idx >= len(self.files):
+            raise IndexError('Index out of range')
+
+        # load the anchor image and the label
+        anchor_img, label_anchor = self.files[idx]
+        # get the list of images with the same label as the anchor
+        positive_imgs = self.files_by_id[label_anchor]
+        # get the location of the anchor image in the list of images with the same label
+        for idx, positive_img in enumerate(positive_imgs):
+            if np.array_equal(positive_img, anchor_img):
+                idx_anchor = idx
+                break
+
+        # -------------- to show an example, experiment -----------------
+        plot_hist(idx_anchor, positive_imgs, plot_histogram_example=False)
+        # -------------- to show an example, experiment -----------------
+
+        # POSITIVE LOOP
+        # select an image following a gaussian distribution with mean idx_anchor and std 1. if idx_anchor is chosen,
+        # the next image is selected.
+        while True:
+            idx_img = int(np.random.normal(idx_anchor, 3))  # std of gaussian is 3 frames
+            if 0 <= idx_img < len(positive_imgs) and idx_img != idx_anchor:
+                break
+        positive_img = positive_imgs[idx_img]
+
+        # NEGATIVE LOOP
+        while True:
+            idx_negative = np.random.randint(0, len(self.files))
+            negative_img, label_neg = self.files[idx_negative]
+            if label_anchor != label_neg:
+                break
 
         if self.transform:
             anchor_img = self.transform(anchor_img)
@@ -234,17 +327,19 @@ if __name__ == "__main__":
                     split='train',
                     transform=None)
     show_image(idx=15000, dataset=db)
-
+    
     mean, std = mean_and_std_calculator(root_path='../../data')
     print(f'depth: mean:{mean[3]/255}, std:{std[3]/255}')
     print(f'ir: mean:{mean[4]/255}, std:{std[4]/255}')
-
+    """
     db_triplet = AppleCropsTriplet(root_path='../../data',
                                    split='train',
                                    transform=None)
-    """
+    db_triplet.__getitem__(idx=2000)
     db_rgb = AppleCropsRGB(root_path='../../data',
                                    split='train',
                                    transform=None)
-
+    db_triplet_rgb = AppleCropsTripletRGB(root_path='../../data',
+                                          split='train',
+                                          transform=None)
     print('finsihed')

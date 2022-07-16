@@ -273,6 +273,34 @@ def umap_from_embeddings(model):
     plt.show()
 
 
+def plot_hist(idx_anchor, positive_imgs, plot_histogram_example=False):
+    idxs = []
+    if plot_histogram_example:
+        for i in range(100000):  # repeat the experiment 10000 times
+            while True:
+                idx_img = int(np.random.normal(idx_anchor, 3))  # std of gaussian is 3 frames
+                if 0 <= idx_img < len(positive_imgs) and idx_img != idx_anchor:
+                    idxs.append(idx_img)
+                    break
+        # generate histogram and plot it
+        # fill the bars of the histogram
+        histogram = np.zeros(len(positive_imgs))
+        for idx_img in idxs:
+            histogram[idx_img] += 1
+        # normalize the histogram, y axes are normalized to 1
+        histogram /= histogram.sum() * 0.01
+        # plot the histogram
+        plt.bar(range(len(positive_imgs)), histogram)
+        # change color of the bars
+        plt.bar(range(len(positive_imgs)), histogram, color='lightblue')
+        plt.title(
+            'Percentage of choosing the crop in a specific frame knowing that anchor image is located at frame = ' + str(
+                idx_anchor))
+        plt.xlabel('Frame number')
+        plt.ylabel('Percentage of choosing the crop in a specific frame [%]')
+        plt.show()
+
+
 if __name__ == "__main__":
     """
     Test in this main to visualize some embeddings from the crops of the apples (using a trained a triplet network).

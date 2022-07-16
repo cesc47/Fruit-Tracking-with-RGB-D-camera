@@ -3,11 +3,9 @@ import argparse
 from sort import sort
 from bytetrack import byte_tracker
 from deepsort import deepsort
-import motmetrics as mm
 
 from tools.utils import *
-from tools.metrics import tracking_evaluation_results, tracking_evaluation_update_params, \
-    evaluate_sequences_hota_metric, save_and_visualize
+from tools.metrics import *
 
 
 def track_detections_frame(predictions, detections, tracker, tracker_type, anterior_video_id, frame_name,
@@ -332,6 +330,8 @@ def track_yolo_results(dataset_name, exp_name, tracker_type='sort', reid=None, p
                                           det_centers=det_centers,
                                           tracker_evaluation=tracker_evaluation)
 
+    # reduce_size_of_bboxes_in_tracking_results(all_tracking_predictions, percentage_to_reduce=0.0375)
+
     if tracker_evaluation:
         # print the results (last video)
         results, metrics = tracking_evaluation_results(accumulator, tracker_evaluation, anterior_video_id)
@@ -381,6 +381,8 @@ def main():
     """
     Main function to perform the tracking
     """
+
+    # todo: redistribute => is it going to be used for testing and getting the metrics or just for getting the results?
 
     # parse the arguments
     args = parse_args()
