@@ -1,0 +1,506 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="apply detection and tracking to videos that are not in the dataset, new triplet resnet RGB, new auxiliar functions in crops to generate reid">
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/Readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/BDD100k-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/DAVIS-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/How_To/Add_a_new_metric.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/KITTI-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/MOTChallenge-Official/Readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/MOTChallenge-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/MOTS-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/OpenWorldTracking-Official/Readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/RobMOTS-Official/Readme.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/TAO-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/docs/YouTube-VIS-format.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/minimum_requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/pyproject.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/requirements.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/comparison_plots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_bdd.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_davis.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_headtracking_challenge.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_kitti.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_kitti_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_mot_challenge.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_mots_challenge.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_rob_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_tao.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_tao_ow.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/scripts/run_youtube_vis.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/setup.cfg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/setup.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/tests/test_all_quick.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/tests/test_davis.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/tests/test_metrics.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/tests/test_mot17.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/tests/test_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/_timing.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/baseline_utils.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/non_overlap.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/pascal_colormap.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/stp.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/thresholder.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/baselines/vizualize.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/_base_dataset.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/bdd100k.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/davis.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/head_tracking_challenge.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/kitti_2d_box.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/kitti_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/mot_challenge_2d_box.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/mots_challenge.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/rob_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/rob_mots_classmap.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/run_rob_mots.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/tao.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/tao_ow.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/datasets/youtube_vis.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/eval.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/_base_metric.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/clear.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/count.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/hota.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/identity.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/ideucl.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/j_and_f.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/track_map.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/metrics/vace.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/plotting.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tools/TrackEval/trackeval/utils.py" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="marc" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="286LwcOxDBYnhitbSNuPnuOETPI" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/francesc/PycharmProjects/kaggle&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;two.files.diff.last.used.file&quot;: &quot;/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/track.py&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data/scripts" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/deepsort" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/data" />
+      <recent name="$PROJECT_DIR$/tools" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
+      <recent name="$PROJECT_DIR$/yolov5_+_tracking/yolov5/runs/train/zed+kinect_pol/weights" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.reid_trainer">
+    <configuration name="dataset_gestions" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tools" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tools/dataset_gestions.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="datasets" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking/bytetrack" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/datasets.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="detect" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/yolov5/detect.py" />
+      <option name="PARAMETERS" value="--weights runs/train/yolov5x_results/weights/best.pt --source ../../data/videos_demostratius/210906_121930_k_r2_e_015_125_162 --save-txt --save-conf --save-crop" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="reid_trainer" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking/bytetrack" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/bytetrack/reid_trainer.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="track_generate_demonstrative_videos" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="Fruit-Tracking-with-RGB-D-camera" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yolov5_+_tracking" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yolov5_+_tracking/track_generate_demonstrative_videos.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.datasets" />
+      <item itemvalue="Python.reid_trainer" />
+      <item itemvalue="Python.detect" />
+      <item itemvalue="Python.track_generate_demonstrative_videos" />
+      <item itemvalue="Python.dataset_gestions" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.reid_trainer" />
+        <item itemvalue="Python.datasets" />
+        <item itemvalue="Python.dataset_gestions" />
+        <item itemvalue="Python.track_generate_demonstrative_videos" />
+        <item itemvalue="Python.detect" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="4bf1d142-94ac-4aec-973d-e27fc53cbfa0" name="Changes" comment="" />
+      <created>1650532331026</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1650532331026</updated>
+    </task>
+    <task id="LOCAL-00001" summary="changes organization">
+      <created>1652782761921</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1652782761921</updated>
+    </task>
+    <task id="LOCAL-00002" summary="changes backup">
+      <created>1653570270455</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570270455</updated>
+    </task>
+    <task id="LOCAL-00003" summary="changes backup">
+      <created>1653570384827</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570384827</updated>
+    </task>
+    <task id="LOCAL-00004" summary="changes backup">
+      <created>1653570466406</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1653570466406</updated>
+    </task>
+    <task id="LOCAL-00005" summary="changes backup">
+      <created>1654103999323</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1654103999323</updated>
+    </task>
+    <task id="LOCAL-00006" summary="changes backup">
+      <created>1654176511613</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1654176511613</updated>
+    </task>
+    <task id="LOCAL-00007" summary="changes backup">
+      <created>1654185879130</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1654185879130</updated>
+    </task>
+    <task id="LOCAL-00008" summary="changes backup">
+      <created>1654782211849</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1654782211849</updated>
+    </task>
+    <task id="LOCAL-00009" summary="changes backup">
+      <created>1654782364937</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1654782364937</updated>
+    </task>
+    <task id="LOCAL-00010" summary="changes backup">
+      <created>1654782451157</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1654782451157</updated>
+    </task>
+    <task id="LOCAL-00011" summary="changes backup">
+      <created>1654796613245</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1654796613245</updated>
+    </task>
+    <task id="LOCAL-00012" summary="typos corrected in the code">
+      <created>1654869414335</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1654869414335</updated>
+    </task>
+    <task id="LOCAL-00013" summary="typos corrected in the code + deepsort (not working yet)">
+      <created>1654871630923</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1654871630923</updated>
+    </task>
+    <task id="LOCAL-00014" summary="deepsort">
+      <created>1654876756810</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1654876756810</updated>
+    </task>
+    <task id="LOCAL-00015" summary="deepsort">
+      <created>1654876888955</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1654876888955</updated>
+    </task>
+    <task id="LOCAL-00016" summary="deepsort">
+      <created>1655230946829</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1655230946829</updated>
+    </task>
+    <task id="LOCAL-00017" summary="hota implementation metric (still working on it...)">
+      <created>1655315747946</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1655315747946</updated>
+    </task>
+    <task id="LOCAL-00018" summary="hota implementation metric (still working on it...)">
+      <created>1655817275883</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1655817275884</updated>
+    </task>
+    <task id="LOCAL-00019" summary="hota implementation done">
+      <created>1655826908074</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1655826908074</updated>
+    </task>
+    <task id="LOCAL-00020" summary="implementing reid bytetrack (still working on it)">
+      <created>1656434103614</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1656434103614</updated>
+    </task>
+    <task id="LOCAL-00021" summary="implementing reid bytetrack (still working on it)">
+      <created>1656925171775</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1656925171775</updated>
+    </task>
+    <task id="LOCAL-00022" summary="reid deepsort implemented in track.py">
+      <created>1657042586923</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1657042586923</updated>
+    </task>
+    <task id="LOCAL-00023" summary="reid deepsort implemented in track.py">
+      <created>1657212371213</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1657212371213</updated>
+    </task>
+    <task id="LOCAL-00024" summary="triplet as reid in deepsort + args parser in track.py as main">
+      <created>1657550048305</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1657550048305</updated>
+    </task>
+    <task id="LOCAL-00025" summary="adding commentaries in the code">
+      <created>1657554239760</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1657554239760</updated>
+    </task>
+    <task id="LOCAL-00026" summary="apply detection and tracking to videos that are not in the dataset, new triplet resnet RGB, new auxiliar functions in crops to generate reid">
+      <created>1658004732880</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1658004732880</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="marc" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <ignored-roots>
+      <path value="$PROJECT_DIR$/yolov5_+_tracking/TrackEval" />
+    </ignored-roots>
+    <MESSAGE value="changes organization" />
+    <MESSAGE value="changes backup" />
+    <MESSAGE value="typos corrected in the code" />
+    <MESSAGE value="typos corrected in the code + deepsort (not working yet)" />
+    <MESSAGE value="deepsort" />
+    <MESSAGE value="hota implementation metric (still working on it...)" />
+    <MESSAGE value="hota implementation done" />
+    <MESSAGE value="implementing reid bytetrack (still working on it)" />
+    <MESSAGE value="reid deepsort implemented in track.py" />
+    <MESSAGE value="triplet as reid in deepsort + args parser in track.py as main" />
+    <MESSAGE value="adding commentaries in the code" />
+    <MESSAGE value="apply detection and tracking to videos that are not in the dataset, new triplet resnet RGB, new auxiliar functions in crops to generate reid" />
+    <option name="LAST_COMMIT_MESSAGE" value="apply detection and tracking to videos that are not in the dataset, new triplet resnet RGB, new auxiliar functions in crops to generate reid" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
