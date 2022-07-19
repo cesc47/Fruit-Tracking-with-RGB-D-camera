@@ -10,7 +10,7 @@ from .linear_assignment import gate_cost_matrix, matching_cascade, min_cost_matc
 from .iou_matching import iou_cost
 from .detection import Detection
 from .track import Track
-
+from tools.utils import read_img_5_channels
 
 def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_img=False):
     """
@@ -212,18 +212,7 @@ class DeepSort(object):
             ori_img = cv2.imread(img_file_name)
         # if endswith .png means reid is custom => 5 channels
         else:
-            ori_img = cv2.imread(img_file_name + 'C.png')
-            # split string in /
-            img_file_name = img_file_name.split('/')
-            videoname = img_file_name[3]
-            filename = img_file_name[-1]
-            ori_img_d = read_depth_or_infrared_file(videoname, filename+'D', normalization=12222)
-            ori_img_i = read_depth_or_infrared_file(videoname, filename+'I', normalization=13915)
-
-            img = np.array((ori_img[:, :, 0], ori_img[:, :, 1], ori_img[:, :, 2], ori_img_d * 255, ori_img_i * 255))
-
-            # transpose channels (a, b, c) => (b, c, a). in img we have the same as before but now 5 channels
-            ori_img = img.transpose(1, 2, 0)
+            ori_img = read_img_5_channels(img_file_name)
 
         self.height, self.width = ori_img.shape[:2]
 

@@ -9,9 +9,9 @@ import pandas as pd
 import scipy.io as sio
 from tqdm import tqdm
 import torchvision.transforms as transforms
-
 from tools.utils import *
-
+import sys
+import matplotlib.pyplot as plt
 
 def refactor_id_frames_extractor():
     """
@@ -922,72 +922,108 @@ def get_info_crops():
     print(f'std distance infrared 225: {information["std_distance_infrared"]["225"]}')
 
 
-def stack_imgs_for_embeddings(visualize_images=False):
+def stack_imgs_for_embeddings(db, visualize_images=False):
     """
     This function stacks the RGB depth and infrared images of the crops from the variable ids. It saves the stacked
     images in the variable imgs_stacked in order to create the embeddings by doing inference to a model in another
     function.
+    :param db: the database
     :param visualize_images: if True, the stacked images will be visualized.
     :return:
     imgs_stacked - a list of the stacked images, with the same index as the ids.
     ids - a list of the ids of the crops.
     id_map - a list that maps the id of the crops to the index of the stacked images.
     """
-    imgs_stacked = None
-    crops = get_crops()
-    ids = [1, 100, 200, 300, 400, 500, 600, 700, 900, 1200, 1400]  # get random ids to plot
+    ids = [100, 200, 350, 450, 500, 600, 700, 800, 850]  # get random ids to plot
+
+    # use seed 42
+    #random.seed(43)
+    random.seed(0)
+    ids = np.arange(914)
+    random.shuffle(ids)
+    ids = ids[:9]
+    ids = ids.tolist()
+
+    files_by_id = db.files_by_id
+
+    # transformations pytorch
+    if files_by_id[0][0].shape[-1] == 5: # rgb-d-i dataset
+        transformations = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((32, 32)),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406, 0.114, 0.073],  # last 2 values of the vector computed with function
+                std=[0.229, 0.224, 0.225, 0.135, 0.0643]),
+        ])
+    else:
+        transformations = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((32, 32)),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],  # last 2 values of the vector computed with function
+                std=[0.229, 0.224, 0.225]),
+        ])
+
+    # create a list of numbers, each number is the index of the stacked image
     id_map = []
-    for crop in crops:
-        if crop['id'] in ids:
-            bbox = crop['bbox_tlbr']
-            crop['bbox_tlbr'] = augment_size_of_bboxes_in_crops(bbox)
+    for id in ids:
+        for _ in range(len(files_by_id[id])):
+            id_map.append(id)
 
-            video_folder_name = crop['file_name'].split('_')[:-2]
-            video_folder_name = '_'.join(video_folder_name)
 
-            # get the img path to files
-            img_rgb = cv2.imread(
-                os.path.join('../data', 'Apple_Tracking_db', video_folder_name, 'images', crop['file_name'] + '_C.png'))
-            # normalization numbers computed with compute_max_value_depth_and_infrared_crops(crops)
-            img_d = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_D', normalization=12222)
-            img_i = read_depth_or_infrared_file(video_folder_name, crop['file_name'] + '_I', normalization=13915)
+    # put all the imgs in a list
+    imgs = []
+    for id in ids:
+        for frame_apple in files_by_id[id]:
+            imgs.append(frame_apple)
 
-            img_rgb = img_rgb[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-
-            img_d = img_d[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-            img_i = img_i[crop['bbox_tlbr'][1]:crop['bbox_tlbr'][3], crop['bbox_tlbr'][0]:crop['bbox_tlbr'][2]]
-
-            img = np.array((img_rgb[:, :, 0], img_rgb[:, :, 1], img_rgb[:, :, 2], img_d, img_i))
-
-            # transformations pytorch
-            transformations = transforms.Compose([
-                transforms.ToTensor(),
-                transforms.Resize((32, 32)),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
-                    std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
-            ])
-            # transpose the images to the correct format (a, b, c) => (b, c, a)
-            img = img.transpose((1, 2, 0))
-
-            if visualize_images:
-                title = str(crop['id']) + '_' + crop['file_name']
-                cv2.imshow(title, img_rgb[:, :, :3])
-                cv2.waitKey(0)
-                cv2.destroyAllWindows()
-
-            # transform the img
-            img = transformations(img)
-
-            # stack the img (repeated 3 times because it is the input of the model)
-            if imgs_stacked is None:
-                imgs_stacked = torch.stack([img.repeat(3, 1, 1, 1)])
+    # stack the imgs to be the input of a model
+    imgs_stacked = None
+    for idx, img in enumerate(imgs):
+        if visualize_images:
+            image_rgb = img[:, :, :3]
+            # convert img to int
+            image_rgb = image_rgb.astype(int)
+            # swap bgr to rgb
+            image_rgb = image_rgb[:, :, [2, 1, 0]]
+            # transpose the image to be (a, b, c) => (c, a, b)
+            # plot the image with plt
+            if files_by_id[0][0].shape[-1] == 5:
+                # create subplot
+                fig, ax = plt.subplots(1, 3, figsize=(15, 15))
+                # plot the image
+                ax[0].imshow(image_rgb)
+                ax[0].set_title('id: ' + str(id_map[idx]))
+                ax[0].axis('off')
             else:
-                imgs_stacked = torch.cat([imgs_stacked, img.repeat(3, 1, 1, 1).unsqueeze(0)])
+                plt.imshow(image_rgb)
+                plt.title('id: ' + str(id_map[idx]))
+                plt.show()
 
-            id_map.append(crop['id'])
+            # rgb-d-i dataset
+            if files_by_id[0][0].shape[-1] == 5:
+                # in subplot
+                ax[1].imshow(img[:, :, 3])
+                ax[1].set_title('depth')
+                ax[1].axis('off')
+                ax[2].imshow(img[:, :, 4])
+                ax[2].set_title('infrared')
+                ax[2].axis('off')
+                # wait key button 0
+                plt.waitforbuttonpress(0)
+                # close the figure
+                plt.close()
 
-    return imgs_stacked, id_map, ids
+        # transform the img
+        img = transformations(img)
+
+        # stack the img (repeated 3 times because it is the input of the model)
+        if imgs_stacked is None:
+            imgs_stacked = torch.stack([img.repeat(3, 1, 1, 1)])
+        else:
+            imgs_stacked = torch.cat([imgs_stacked, img.repeat(3, 1, 1, 1).unsqueeze(0)])
+
+    return imgs_stacked, ids, id_map
 
 
 if __name__ == "__main__":
@@ -1007,18 +1043,7 @@ if __name__ == "__main__":
     # compute_max_value_depth_and_infrared_crops()
     # redistribute_crops_numpy(False)
     # get_info_crops()
+    # show imported packages sys.path
+    # add path '/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking'
 
-    """
-    idx = 15643
-    positions = []
-    for i in range(10000):
-        idx_img = int(np.random.normal(idx, 300)) # max poma aprox 50 frames
-        positions.append(idx_img)
-    # generate histogram and plot it
-    plt.hist(positions, bins=100)
-    # title
-    plt.title('Histogram of the positions of the crops for idx = ' + str(idx) + ' (mean = ' + str(np.mean(positions)) +
-              ')' + 'std = ' + str(np.std(positions)))
-    plt.show()
-    """
     print('finished')

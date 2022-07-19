@@ -30,7 +30,7 @@ def main():
     wandb.init(project="reid_training", entity="cesc47")
 
     # type of network: reid or reid_triplet
-    network = 'reid_resnet_triplet_rgb'
+    network = 'reid_resnet_rgb'
 
     # raise error if network is not reid or reid_triplet
     if network not in ['reid', 'reid_triplet', 'reid_resnet', 'reid_resnet_rgb', 'reid_resnet_triplet',
@@ -79,10 +79,9 @@ def main():
         transformations = transforms.Compose([
             transforms.ToTensor(),
             transforms.Resize((32, 32)),
-            # todo: cambiar normalizacion, calcular nuevo mean and std
             transforms.Normalize(
-                mean=[0.485, 0.456, 0.406, 0.034, 0.036],   # last 2 values of the vector computed with function
-                std=[0.229, 0.224, 0.225, 0.010, 0.008]),   # mean_and_std_calculator in datasets.py
+                mean=[0.485, 0.456, 0.406, 0.114, 0.073],   # last 2 values of the vector computed with function
+                std=[0.229, 0.224, 0.225, 0.135, 0.0643]),   # mean_and_std_calculator in datasets.py
         ])
     else:
         transformations = transforms.Compose([

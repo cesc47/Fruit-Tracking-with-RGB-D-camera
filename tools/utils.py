@@ -2,6 +2,8 @@ import os
 import numpy as np
 from tools.read_segmentation import read_segmentation
 from tqdm import tqdm
+import cv2
+from tools.dataset_gestions import read_depth_or_infrared_file
 
 GLOBAL_PATH_DB = '../data/Apple_Tracking_db'
 
@@ -372,9 +374,54 @@ def order_detections_folder_nums(path):
     return numbers
 
 
+def filter_detections_by_depth_map(all_detections):
+    """
+    Filters the detections (list of frames and inside each frame => list of (bbox, conf)) by the size of the depth
+    map. The depth and Ir map, does not work with all the image (1920, 1080), it only gives us information in the
+    center of the image (around 600 and 1400).
+    :param all_detections: the detections in a list format
+    :return: the detections in a list format with the detections filtered by the size of the depth map
+    """
+    for idx, detections_frame in enumerate(all_detections):
+        detections_frame = [detection for detection in detections_frame if not skip_bbox_if_outside_map([detection[0], detection[1], detection[2], detection[3]])]
+        all_detections[idx] = detections_frame
 
 
+def filter_gt_by_depth_map(all_gts):
+    """
+    Does the same as 'filter_detections_by_depth_map' but now working with gt. It reads a list of dicts instead of
+    reading a list of lists.
+    :param all_gts: the gt in a list
+    :return: the gt in a list with the gt filtered by the size of the depth map
+    """
+    for idx, gt_frame in enumerate(all_gts):
+        bboxes = []
+        ids = []
+        id_video = gt_frame['id_video']
 
+        for bbox, id in zip(gt_frame['bboxes'], gt_frame['ids']):
+            if not skip_bbox_if_outside_map([bbox[0], bbox[1], bbox[2], bbox[3]]):
+                bboxes.append(bbox)
+                ids.append(id)
+
+        all_gts[idx] = {'id_video': id_video, 'bboxes': bboxes, 'ids': ids}
+
+
+def read_img_5_channels(img_file_name):
+    ori_img = cv2.imread(img_file_name + 'C.png')
+    # split string in /
+    img_file_name = img_file_name.split('/')
+    videoname = img_file_name[3]
+    filename = img_file_name[-1]
+    ori_img_d = read_depth_or_infrared_file(videoname, filename + 'D', normalization=4000)
+    ori_img_i = read_depth_or_infrared_file(videoname, filename + 'I', normalization=2000)
+
+    img = np.array((ori_img[:, :, 0], ori_img[:, :, 1], ori_img[:, :, 2], ori_img_d * 255, ori_img_i * 255))
+
+    # transpose channels (a, b, c) => (b, c, a). in img we have the same as before but now 5 channels
+    ori_img = img.transpose(1, 2, 0)
+
+    return ori_img
 if __name__ == '__main__':
     compute_sizes_all_gts()
 

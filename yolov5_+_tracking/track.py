@@ -38,15 +38,23 @@ def track_detections_frame(predictions, detections, tracker, tracker_type, anter
 
     # if there are detections in the frame, track them
     else:
+        # get the path of the img
+        path = search_in_dataset_an_image_from_yolo_dataset(frame_name)
         # update the tracker with the detections
         if tracker_type == 'sort':
             trackers = tracker.update(np.array(detections))
 
         elif tracker_type == 'bytetrack':
-            trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
+            if reid is None:
+                trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size)
+            elif reid.endswith('rgb'):
+                trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size,
+                                          img_file_name=path+'C.png')
+            else:
+                trackers = tracker.update(np.array(detections), img_info=img_size, img_size=img_size,
+                                          img_file_name=path)
 
         elif tracker_type == 'deepsort':
-            path = search_in_dataset_an_image_from_yolo_dataset(frame_name)
             # use default network deepsort or custom rgb
             if reid is None or reid.endswith('rgb'):
                 trackers = tracker.update(np.array(detections), img_file_name=path+'C.png')
@@ -255,13 +263,16 @@ def initialise_data(partition, dataset_name, exp_name):
     # the ground truths are in the ./data/Apple_Tracking_db dataset
     ground_truths, video_names_gt = read_from_yolo(os.path.join('datasets', dataset_name, partition, 'labels'),
                                                    ground_truth=True)
+    # filter bboxes in case that reid is used
+    filter_gt_by_depth_map(ground_truths)
 
     # read detections from yolo output files
     # path_detections is the folder where the detections from yolo are stored
     all_detections, video_names_det = read_from_yolo(os.path.join('yolov5', 'runs', 'detect', exp_name, 'labels'),
                                                      filter_detections=True,
                                                      ground_truth=False)
-
+    # filter bboxes in case that reid is used
+    filter_detections_by_depth_map(all_detections)
     anterior_video_id = None
 
     return all_tracking_predictions, all_tracking_results, ground_truths, video_names_gt, all_detections, \

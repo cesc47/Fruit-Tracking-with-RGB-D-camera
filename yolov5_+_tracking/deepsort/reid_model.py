@@ -156,29 +156,24 @@ class ReidAppleNet(nn.Module):
     """
     Implementation of a custom NN to extract the features of the images (re-id network)
     """
-    def __init__(self, num_classes=1414, reid=False):
+    def __init__(self, num_classes=914, reid=False):
         super(ReidAppleNet, self).__init__()
         # 3 128 64
         self.conv = nn.Sequential(
             nn.Conv2d(5, 64, 3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            # nn.Conv2d(32,32,3,stride=1,padding=1),
-            # nn.BatchNorm2d(32),
-            # nn.ReLU(inplace=True),
             nn.MaxPool2d(3, 2, padding=1),
         )
         # 32 64 32
-        self.layer1 = make_layers2(64, 64, 2, False)
+        self.layer1 = make_layers(64, 64, 2, False)
         # 32 64 32
-        self.layer2 = make_layers2(64, 128, 2, True)
+        self.layer2 = make_layers(64, 128, 2, True)
         # 64 32 16
-        self.layer3 = make_layers2(128, 256, 2, True)
+        self.layer3 = make_layers(128, 256, 2, True)
         # 128 16 8
-        self.layer4 = make_layers2(256, 1414, 2, True)
-        #self.layer4 = make_layers(256, 512, 2, True)
+        self.layer4 = make_layers(256, num_classes, 2, True)
         # 256 8 4
-        # todo: aquí se puede mirar de dejar un vector mas grande
         self.avgpool = nn.AvgPool2d((2, 2), 1)
         # 256 1 1
         self.reid = reid
@@ -226,6 +221,46 @@ class ReidAppleNetTriplet(nn.Module):
         return embedded
 
 
+class ReidAppleNetTripletResNet(nn.Module):
+    """
+    Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
+    input and outputs.
+    """
+    def __init__(self, num_classes=914):
+        super(ReidAppleNetTripletResNet, self).__init__()
+        self.reid_apple_net = load_resnet_modified(num_output_channels=num_classes)
+
+    def forward(self, data):
+        embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
+        embedded_y = self.reid_apple_net(data[:, 1, :, :, :])
+        embedded_z = self.reid_apple_net(data[:, 2, :, :, :])
+
+        # concatenate the three tensors
+        embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+
+        return embedded
+
+
+class ReidAppleNetTripletResNetRGB(nn.Module):
+    """
+    Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
+    input and outputs.
+    """
+    def __init__(self, num_classes=914):
+        super(ReidAppleNetTripletResNetRGB, self).__init__()
+        self.reid_apple_net = load_resnet_modified(num_input_channels=3, num_output_channels=num_classes)
+
+    def forward(self, data):
+        embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
+        embedded_y = self.reid_apple_net(data[:, 1, :, :, :])
+        embedded_z = self.reid_apple_net(data[:, 2, :, :, :])
+
+        # concatenate the three tensors
+        embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+
+        return embedded
+
+
 def load_resnet(model_name='resnet152', pretrained=True):
     """
     Load a pretrained resnet model. The model name should be one of the following:
@@ -240,6 +275,7 @@ def modify_input_resnet(model, num_input_channels=5):
     """
     Modify the input of the resnet model.
     :param model: the resnet model
+    :param num_input_channels: the number of input channels
     """
     model.conv1 = nn.Conv2d(num_input_channels, 64, 7, 2, 3, bias=False)
     model.bn1 = nn.BatchNorm2d(64)
@@ -247,23 +283,28 @@ def modify_input_resnet(model, num_input_channels=5):
     model.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
 
-def modify_output_resnet(model, num_output_channels=1414):
+def modify_output_resnet(model, num_output_channels=914):
     """
     Modify the output of the resnet model.
     :param model: the resnet model
+    :param num_output_channels: the number of output channels
+    :return: the modified resnet model
     """
     # model.add_module("fc_last", nn.Linear(1000, num_output_channels))
     model = torch.nn.Sequential(model, torch.nn.Linear(1000, num_output_channels))
     return model
 
 
-def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=1414):
+def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=914):
     """
     Changing a resnet to extract the features of the images (re-id network)
     Load a pretrained resnet model. The model name should be one of the following:
     'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
     :param model_name: the name of the model
     :param pretrained: if True, load the pretrained weights
+    :param num_input_channels: the number of input channels
+    :param num_output_channels: the number of output channels
+    :return: the modified resnet model
     """
 
     net = load_resnet(model_name, pretrained)
@@ -299,9 +340,13 @@ class Extractor(object):
             if model_path.endswith('rgb.pth'):
                 self.net = load_resnet_modified(num_input_channels=3)
             elif model_path.endswith('resnet.pth'):
-                self.net = ReidAppleNet()
+                #self.net = ReidAppleNet()
+                self.net = load_resnet_modified()
             elif model_path.endswith('resnet_triplet.pth'):
-                self.net = ReidAppleNetTriplet()
+                #self.net = ReidAppleNetTriplet()
+                self.net = ReidAppleNetTripletResNet()
+            elif model_path.endswith('resnet_triplet_rgb.pth'):
+                self.net = ReidAppleNetTripletResNetRGB()
             else:
                 raise ValueError("Unknown model type")
 
@@ -314,8 +359,8 @@ class Extractor(object):
                 self.norm = transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize(
-                        mean=[0.485, 0.456, 0.406, 0.034, 0.036],  # last 2 values of the vector computed with function
-                        std=[0.229, 0.224, 0.225, 0.010, 0.008]),  # mean_and_std_calculator in datasets.py
+                        mean=[0.485, 0.456, 0.406, 0.114, 0.073],  # last 2 values of the vector computed with function
+                        std=[0.229, 0.224, 0.225, 0.135, 0.0643]),  # mean_and_std_calculator in datasets.py
                 ])
             # reid custom network w/ 3 channels
             else:
@@ -356,5 +401,5 @@ class Extractor(object):
             features = self.net(im_batch)
             if self.model_name.endswith('triplet'):
                 # get only the output from the first network (triplet)
-                features = features[:, :1414]
+                features = features[:, :914]
         return features.cpu().numpy()

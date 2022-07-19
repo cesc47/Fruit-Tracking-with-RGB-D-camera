@@ -10,7 +10,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 from torchvision import transforms
-from datasets import AppleCrops
+from bytetrack.datasets import AppleCrops
+import cv2
+import numpy as np
 
 class BasicBlock(nn.Module):
     def __init__(self, c_in, c_out, is_downsample=False):
@@ -286,6 +288,67 @@ def infer_batch(network, modelname, data, fmap=True):
                 raise ValueError(f'Model {modelname} not found')
 
     return network(data)
+
+
+class Extractor(object):
+    def __init__(self, model_path, use_cuda=True):
+        self.model_name = model_path.split('/')[-1].split('.')[0]
+        if model_path.endswith('rgb.pth'):
+            self.net = load_resnet_modified(num_input_channels=3)
+        elif model_path.endswith('resnet.pth'):
+            self.net = load_resnet_modified()
+        elif model_path.endswith('resnet_triplet.pth'):
+            self.net = ReidAppleNetTripletResNet()
+        elif model_path.endswith('resnet_triplet_rgb.pth'):
+            self.net = ReidAppleNetTripletResNetRGB()
+        else:
+            raise ValueError("Unknown model type")
+
+        self.device = "cuda" if torch.cuda.is_available() and use_cuda else "cpu"
+        self.net.load_state_dict(torch.load(model_path), strict=False)
+        self.net.to(self.device)
+        self.size = (32, 32)
+        # reid custom network w/ 5 channels
+        if not model_path.endswith('rgb.pth'):
+            self.norm = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406, 0.114, 0.073],  # last 2 values of the vector computed with function
+                    std=[0.229, 0.224, 0.225, 0.135, 0.0643]),  # mean_and_std_calculator in datasets.py
+            ])
+        # reid custom network w/ 3 channels
+        else:
+            self.norm = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406],  # last 2 values of the vector computed with function
+                    std=[0.229, 0.224, 0.225]),  # mean_and_std_calculator in datasets.py
+            ])
+
+    def _preprocess(self, im_crops):
+        def _resize(im, size):
+            return cv2.resize(im.astype(np.float32)/255., size)
+
+        im_batch = torch.cat([self.norm(_resize(im, self.size)).unsqueeze(
+            0) for im in im_crops], dim=0).float()
+        return im_batch
+
+    def __call__(self, im_crops):
+        im_batch = self._preprocess(im_crops)
+        with torch.no_grad():
+            im_batch = im_batch.to(self.device)
+            if self.model_name.endswith('triplet'):
+                # add 1 dim to the im_batch to match the input of the network
+                im_batch = im_batch.unsqueeze(0)
+                # transpose img (a, b, c, d, e) => (b, a, c, d, e)
+                im_batch = im_batch.permute(1, 0, 2, 3, 4)
+                # replicate the image to match the input of the network
+                im_batch = im_batch.repeat(1, 3, 1, 1, 1)
+            features = self.net(im_batch)
+            if self.model_name.endswith('triplet'):
+                # get only the output from the first network (triplet)
+                features = features[:, :914]
+        return features.cpu().numpy()
 
 
 if __name__ == "__main__":

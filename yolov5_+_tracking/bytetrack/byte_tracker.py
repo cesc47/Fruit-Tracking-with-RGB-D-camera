@@ -3,6 +3,10 @@ import numpy as np
 from .kalman_filter import KalmanFilter
 import bytetrack.matching as matching
 from .basetrack import BaseTrack, TrackState
+from tools.utils import read_img_5_channels
+import cv2
+from bytetrack.reid_net import Extractor
+import os
 
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
@@ -149,13 +153,28 @@ class BYTETracker(object):
         self.kalman_filter = KalmanFilter()
         self.max_time_lost = 30  # the frames for keep lost tracks
         self.reid = reid
+        self.img = None
+        self.img_size = None
 
-    def update(self, output_results, img_info, img_size):
+        if self.reid is not None:
+            self.extractor = Extractor(model_path=os.path.join('bytetrack', 'models', f'{reid}.pth'), use_cuda=True)
+        else:
+            self.extractor = None
+
+    def update(self, output_results, img_info, img_size, img_file_name=None):
         self.frame_id += 1
         activated_starcks = []
         refind_stracks = []
         lost_stracks = []
         removed_stracks = []
+
+        # reid is custom => 3 channels
+        if img_file_name is not None:
+            if img_file_name.endswith('.png'):
+                self.img = cv2.imread(img_file_name)
+            # reid is custom => 5 channels
+            elif not img_file_name.endswith('.png') and img_file_name is not None:
+                self.img = read_img_5_channels(img_file_name)
 
         if output_results.shape[1] == 5:
             scores = output_results[:, 4]
@@ -165,6 +184,8 @@ class BYTETracker(object):
             scores = output_results[:, 4] * output_results[:, 5]
             bboxes = output_results[:, :4]  # x1y1x2y2
         img_h, img_w = img_info[0], img_info[1]
+
+        self.img_size = img_size
         scale = min(img_size[0] / float(img_h), img_size[1] / float(img_w))
         # bboxes /= scale
 
@@ -184,6 +205,14 @@ class BYTETracker(object):
                           (tlbr, s) in zip(dets, scores_keep)]
         else:
             detections = []
+
+        # assign features to detections - cesc
+        features = None
+        if self.reid is not None:
+            bbox_xywh = [detection.tlwh for detection in detections]
+            features = self._get_features(bbox_xywh, self.img)
+            for detection in detections:
+                detection.features = features[detections.index(detection)]
 
         ''' Add newly detected tracklets to tracked_stracks'''
         unconfirmed = []
@@ -288,6 +317,31 @@ class BYTETracker(object):
 
         return output_stracks
 
+    def _tlwh_to_xyxy(self, bbox_tlwh):
+        """
+        TODO:
+            Convert bbox from xtl_ytl_w_h to xc_yc_w_h
+        Thanks JieChen91@github.com for reporting this bug!
+        """
+        x, y, w, h = bbox_tlwh
+        x1 = max(int(x), 0)
+        x2 = min(int(x+w), self.img_size[0] - 1)
+        y1 = max(int(y), 0)
+        y2 = min(int(y+h), self.img_size[1] - 1)
+        return x1, y1, x2, y2
+
+    def _get_features(self, bbox_xywh, ori_img):
+        im_crops = []
+        for box in bbox_xywh:
+            x1, y1, x2, y2 = self._tlwh_to_xyxy(box)
+            im = ori_img[y1:y2, x1:x2]
+            im_crops.append(im)
+        if im_crops:
+            features = self.extractor(im_crops)
+        else:
+            features = np.array([])
+        return features
+
 
 def joint_stracks(tlista, tlistb):
     exists = {}
@@ -328,3 +382,8 @@ def remove_duplicate_stracks(stracksa, stracksb):
     resa = [t for i, t in enumerate(stracksa) if not i in dupa]
     resb = [t for i, t in enumerate(stracksb) if not i in dupb]
     return resa, resb
+
+
+
+
+

@@ -322,16 +322,17 @@ class AppleCropsTripletRGB(Dataset):
 
 if __name__ == "__main__":
     # to test the datasets if they are working
-    """
+
     db = AppleCrops(root_path='../../data',
                     split='train',
                     transform=None)
     show_image(idx=15000, dataset=db)
     
     mean, std = mean_and_std_calculator(root_path='../../data')
+
     print(f'depth: mean:{mean[3]/255}, std:{std[3]/255}')
     print(f'ir: mean:{mean[4]/255}, std:{std[4]/255}')
-    """
+
     db_triplet = AppleCropsTriplet(root_path='../../data',
                                    split='train',
                                    transform=None)

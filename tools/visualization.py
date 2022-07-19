@@ -5,6 +5,8 @@ import random
 from tools.dataset_gestions import stack_imgs_for_embeddings
 import umap
 import matplotlib.pyplot as plt
+import sys
+import torch
 
 # located in data/Apple_tracking_db
 GLOBAL_PATH_DB = './data/Apple_Tracking_db'
@@ -231,19 +233,22 @@ def save_frames_to_video(imgs, path):
     out.release()
 
 
-def umap_from_embeddings(model):
+def umap_from_embeddings(db, only_rgb, model):
     """
     Create a umap visualization of the embeddings of some images. It performs inference on the model to extract the
     embeddings.
     :param model: the model
+    :param db: the database
+    :param only_rgb: if True, only use the rgb images
     """
-    imgs_stacked, id_map, ids = stack_imgs_for_embeddings(visualize_images=False)
+
+    imgs_stacked, ids, id_map = stack_imgs_for_embeddings(db, visualize_images=True)
 
     with torch.no_grad():
         embedding = model(imgs_stacked)
         embedding = embedding.detach().numpy()
     # crop the embedding in 1414 (because the two others are the same)
-    embedding = embedding[:, :1414]
+    embedding = embedding[:, :914]
 
     # create the umap embedding, print the embedding with colors of the class
     umap_embedding = umap.UMAP(n_neighbors=10, min_dist=0.1, n_components=2, metric='correlation').fit_transform(embedding)
@@ -251,7 +256,7 @@ def umap_from_embeddings(model):
     # plot the umap embedding with color
     plt.figure(figsize=(10, 10))
     # assign random color vector to each class.  2D array in which the rows are RGB
-    colors = np.array(["red", "green", "blue", "yellow", "pink", "black", "orange", "purple", "brown", "gray", "cyan"])
+    colors = np.array(["red", "green", "blue", "yellow", "pink", "black", "orange", "purple", "brown"])
 
     # see if len colors is the same as len ids
     if len(colors) != len(ids):
@@ -269,7 +274,11 @@ def umap_from_embeddings(model):
             colors_bool[idx_c] = 1
             plt.text(umap_embedding[idx, 0], umap_embedding[idx, 1], id, color=colors[idx_c], fontsize=40)
 
-    plt.title('UMAP embedding')
+    if only_rgb:
+        plt.title('UMAP embedding of RGB images', fontsize=40)
+    else:
+        plt.title('UMAP embedding of RGB-D-I images', fontsize=40)
+
     plt.show()
 
 
@@ -306,81 +315,32 @@ if __name__ == "__main__":
     Test in this main to visualize some embeddings from the crops of the apples (using a trained a triplet network).
     """
 
-    import torch
-    import torch.nn as nn
+    sys.path.append('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/bytetrack')
+    from reid_net import ReidAppleNetTripletResNet, ReidAppleNetTripletResNetRGB
+    from datasets import AppleCropsTriplet, AppleCropsTripletRGB
 
-    class ReidAppleNetTripletResNet(nn.Module):
-        """
-        Implementation of the Reid AppleNet model with triplet loss from resNet pretrained with imagnet but with modified
-        input and outputs.
-        """
+    only_rgb = False
 
-        def __init__(self, num_classes=1414):
-            super(ReidAppleNetTripletResNet, self).__init__()
-            self.reid_apple_net = load_resnet_modified(num_output_channels=num_classes)
+    if not only_rgb:
+        model = ReidAppleNetTripletResNet()
+        # load state dict
+        model.load_state_dict(torch.load('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking'
+                                         '/bytetrack/models/reid_applenet_resnet_triplet.pth'))
+        model.eval()
 
-        def forward(self, data):
-            embedded_x = self.reid_apple_net(data[:, 0, :, :, :])
-            embedded_y = self.reid_apple_net(data[:, 1, :, :, :])
-            embedded_z = self.reid_apple_net(data[:, 2, :, :, :])
+        db_triplet = AppleCropsTriplet(root_path='../data',
+                                       split='test',
+                                       transform=None)
+    else:
+        model = ReidAppleNetTripletResNetRGB()
+        # load state dict
+        model.load_state_dict(
+            torch.load('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking'
+                       '/bytetrack/models/reid_applenet_resnet_triplet_rgb.pth'))
+        model.eval()
 
-            # concatenate the three tensors
-            embedded = torch.cat((embedded_x, embedded_y, embedded_z), 1)
+        db_triplet = AppleCropsTripletRGB(root_path='../data',
+                                       split='test',
+                                       transform=None)
 
-            return embedded
-
-
-    def load_resnet(model_name='resnet152', pretrained=True):
-        """
-        Load a pretrained resnet model. The model name should be one of the following:
-        'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
-        :param model_name: the name of the model
-        :param pretrained: if True, load the pretrained weights
-        """
-        return torch.hub.load('pytorch/vision:v0.10.0', model_name, pretrained)
-
-
-    def modify_input_resnet(model, num_input_channels=5):
-        """
-        Modify the input of the resnet model.
-        :param model: the resnet model
-        """
-        model.conv1 = nn.Conv2d(num_input_channels, 64, 7, 2, 3, bias=False)
-        model.bn1 = nn.BatchNorm2d(64)
-        model.relu = nn.ReLU(inplace=True)
-        model.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-
-
-    def modify_output_resnet(model, num_output_channels=1414):
-        """
-        Modify the output of the resnet model.
-        :param model: the resnet model
-        """
-        # model.add_module("fc_last", nn.Linear(1000, num_output_channels))
-        model = torch.nn.Sequential(model, torch.nn.Linear(1000, num_output_channels))
-        return model
-
-
-    def load_resnet_modified(model_name='resnet152', pretrained=True, num_input_channels=5, num_output_channels=1414):
-        """
-        Changing a resnet to extract the features of the images (re-id network)
-        Load a pretrained resnet model. The model name should be one of the following:
-        'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152'
-        :param model_name: the name of the model
-        :param pretrained: if True, load the pretrained weights
-        """
-
-        net = load_resnet(model_name, pretrained)
-
-        if num_input_channels != 3:
-            modify_input_resnet(net, num_input_channels)
-
-        net = modify_output_resnet(net, num_output_channels)
-
-        return net
-
-    model = ReidAppleNetTripletResNet()
-    # load state dict
-    model.load_state_dict(torch.load('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/bytetrack/models/reid_applenet_resnet_triplet.pth'))
-    model.eval()
-    umap_from_embeddings(model)
+    umap_from_embeddings(db_triplet, only_rgb, model)
