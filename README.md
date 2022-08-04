@@ -114,23 +114,23 @@ Structured repository overview **after** cloning and performing the installation
     │   └── visualization.py            # Visualization of the results, dataset and trackers
     └── yolov5_+_tracking
         ├── bytetrack                   # Cloned & modified github repo to perform the tracking of the apples using ByteTrack
-        ├── models                      # models uploaded here to use custom Re-ID networks
+        ├── models                      # Models uploaded here to use custom Re-ID networks
         │   │   ├── ...
-        │   ├── byte_tracker.py         # bytetrack files (some of them modified)
+        │   ├── byte_tracker.py         # Bytetrack files (some of them modified)
         │   └── ...                     
         ├── deepsort                    # Cloned & modified github repo to perform the tracking of the apples using deepSORT
-        │   ├── deepsort.py  
+        │   ├── deepsort.py             # DeepSORT files (some of them modified)
         │   └── ...
         ├── sort                        # Cloned & modified github repo to perform the tracking of the apples using SORT
         │   └── sort.py
-        ├── datasets                    # yolo dataset to generate inference
-        ├── results tracking            # results of the tracking of the apples 
+        ├── datasets                    # Yolo dataset to generate inference
+        ├── results tracking            # Results of the tracking of the apples 
         ├── yolov5                      # Cloned yolov5 github repo to perform the inference of the apples
         │   ├── data
-        │   │   ├── ....yaml            # yaml file to perform the inference of the apples
+        │   │   ├── ....yaml            # Yaml file to perform the inference of the apples
         │   ├── runs
-        │   │   ├── detect              # where inference will be automatically stored
-        │   │   └── train               # where yolo model should be stored
+        │   │   ├── detect              # Where inference will be automatically stored
+        │   │   └── train               # Where yolo model should be stored
         │   └── tools
         └── track.py                    # Main file to perform the tracking of the apples
 
@@ -138,39 +138,80 @@ Structured repository overview **after** cloning and performing the installation
 
 
 ## Installation & requirements
+These are the requirements needed to replicate the results of the article. If you just want to use the detection + tracking without the evaluation, less steps are needed:
 
-install requirements.txt
+1) Install requirements and create data folder.
+    ```
+    pip install -r requirements.txt
+    mkdir data
+    ```
 
-create data directory
-
-put downloaded dataset in data directory
-
-clone TrackEval repo inside tools directory
-
-create models directory inside bytetrack directory
-
-download reid models
-
-create datasets directory inside yolov5_+_tracking directory
-
-command to generate yolo dataset from Dataset
-
-clone yolo repo inside yolov5_+_tracking directory
-
-download yolo model trained, .yaml. create runs and train directories.
+2) [Download dataset](https://drive.google.com/file/d/192nAusRE4WtHu5nNrnaJxE5V61AYxt7f/view?usp=sharing) and put it inside data/ folder.
 
 
-```
-git aaaa
-```
+3) Clone TrackEval repo:
+    ```
+    cd tools
+    git clone https://github.com/JonathonLuiten/TrackEval.git
+    cd ..
+    ```
+4) Add Re-ID models:
+    ```
+    mkdir yolov5_+_tracking/bytetrack/models
+    ```
+   [Download models](https://drive.google.com/file/d/192nAusRE4WtHu5nNrnaJxE5V61AYxt7f/view?usp=sharing) and put it inside yolov5_+_tracking/bytetrack/models/ folder.
+
+
+5) Prepare yolo dataset
+    ```
+    mkdir yolov5_+_tracking/datasets
+    python3 tools/dataset_gestions.py --create_yolo_dataset
+    ```
+6) Clone yolov5 repo:
+    ```
+    cd yolov5_+_tracking
+    git clone https://github.com/ultralytics/yolov5.git
+    cd ..
+   
+[Download .yaml](https://drive.google.com/file/d/192nAusRE4WtHu5nNrnaJxE5V61AYxt7f/view?usp=sharing) and put it inside yolov5_+_tracking/yolov5/data/ folder.
+
+[Download trained model](https://drive.google.com/file/d/192nAusRE4WtHu5nNrnaJxE5V61AYxt7f/view?usp=sharing) and put it inside yolov5_+_tracking/yolov5/runs/train/ folder.
 
 
 ## Running instructions
 
-inference yolo
+To perform inference in yolo with trained model, run the following command:
+```
+python3 --weights runs/train/yolov5x_results/weights/best.pt --source ../datasets/Apple_Tracking_db_yolo/test/images --data data/segmentacio_pomes.yaml --save-txt --save-conf
+```
 
-track
+To perform the tracking once the inference is performed, run the following command:
 
+Required arguments:
+```
+ --tracker_type 	       Type of tracker (e.g. sort, bytetrack, deepsort)
+```
+
+Optional arguments: 
+
+| Parameter          | Default       | Description                                                                                                                                                   |	
+|:-------------------|:-------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| reid               | None          | Use reid network to** track. If None, no reid network is used or use reid by default in deepsort case.                                                        
+| partition          | test        | Partition where the results are computed => test, train or val. careful that this relates to what db you have done inference in yolo (name of the experiment) 
+| multiplier_frames  | 1    | Number of frames to skip between each frame                                                                                                                   
+| tracker_evaluation | False | If True, the metrics are computed for the tracker                                                                                                             
+| visualize_results  | False | If True, the results are visualized in the images                                                                                                             
+| save_results       | False     | If True, the results are saved in a csv file                                                                                                                  
+
+
+An example using deepsort and the Re-ID: reid_applenet_resnet_triplet, evaluating and saving the results: 
+```
+--tracker_type deepsort --reid reid_applenet_resnet_triplet --tracker_evaluation True --save_results True
+```
+
+The final results of the tracking should have this look:
+
+![](https://github.com/cesc47/Fruit-Tracking-with-RGB-D-camera/video_tracking.mp4?raw=true)
 
 ## More resources
 
