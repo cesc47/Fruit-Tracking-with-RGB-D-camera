@@ -180,13 +180,17 @@ These are the requirements needed to replicate the results of the article. If yo
 
 ## Running instructions
 
+### Object detection
 To perform inference in yolo with trained model, run the following command:
 ```
 python3 --weights runs/train/yolov5x_results/weights/best.pt --source ../datasets/Apple_Tracking_db_yolo/test/images --data data/segmentacio_pomes.yaml --save-txt --save-conf
 ```
 
-To perform the tracking once the inference is performed, run the following command:
+### Object Tracking
 
+To perform the tracking once the inference is performed just call **track.py**. Read the following instuctions about the usage:
+
+#### Usage
 Required arguments:
 ```
  --tracker_type 	       Type of tracker (e.g. sort, bytetrack, deepsort)
@@ -201,15 +205,17 @@ Optional arguments:
 | multiplier_frames  | 1    | Number of frames to skip between each frame                                                                                                                   |
 | tracker_evaluation | False | If True, the metrics are computed for the tracker                                                                                                             |
 | visualize_results  | False | If True, the results are visualized in the images                                                                                                             |
-| save_results       | False     | If True, the results are saved in a csv file                                                                                                                  |
+| save_results       | False     | If True, the results are saved in a csv file and in a video                                                                                                   |
 
 
-An example using deepsort and the Re-ID: reid_applenet_resnet_triplet, evaluating and saving the results: 
+#### Example
+
+An example using deepsort and the reid_applenet_resnet_triplet as Re-ID, evaluating and saving the results: 
 ```
---tracker_type deepsort --reid reid_applenet_resnet_triplet --tracker_evaluation True --save_results True
+python3 track.py --tracker_type deepsort --reid reid_applenet_resnet_triplet --tracker_evaluation True --save_results True
 ```
 
-The final results of the tracking should have this look:
+The final results after this procedure should have this look (with a higher frame rate and quality):
 
 ![](video_tracking.gif)
 
