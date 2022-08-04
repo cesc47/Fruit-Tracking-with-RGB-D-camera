@@ -196,12 +196,12 @@ Optional arguments:
 
 | Parameter          | Default       | Description                                                                                                                                                   |	
 |:-------------------|:-------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| reid               | None          | Use reid network to** track. If None, no reid network is used or use reid by default in deepsort case.                                                        
-| partition          | test        | Partition where the results are computed => test, train or val. careful that this relates to what db you have done inference in yolo (name of the experiment) 
-| multiplier_frames  | 1    | Number of frames to skip between each frame                                                                                                                   
-| tracker_evaluation | False | If True, the metrics are computed for the tracker                                                                                                             
-| visualize_results  | False | If True, the results are visualized in the images                                                                                                             
-| save_results       | False     | If True, the results are saved in a csv file                                                                                                                  
+| reid               | None          | Use reid network to** track. If None, no reid network is used or use reid by default in deepsort case.                                                        |
+| partition          | test        | Partition where the results are computed => test, train or val. careful that this relates to what db you have done inference in yolo (name of the experiment) |
+| multiplier_frames  | 1    | Number of frames to skip between each frame                                                                                                                   |
+| tracker_evaluation | False | If True, the metrics are computed for the tracker                                                                                                             |
+| visualize_results  | False | If True, the results are visualized in the images                                                                                                             |
+| save_results       | False     | If True, the results are saved in a csv file                                                                                                                  |
 
 
 An example using deepsort and the Re-ID: reid_applenet_resnet_triplet, evaluating and saving the results: 
@@ -211,7 +211,7 @@ An example using deepsort and the Re-ID: reid_applenet_resnet_triplet, evaluatin
 
 The final results of the tracking should have this look:
 
-![](https://github.com/cesc47/Fruit-Tracking-with-RGB-D-camera/video_tracking.mp4?raw=true)
+![](video_tracking.gif)
 
 ## More resources
 
