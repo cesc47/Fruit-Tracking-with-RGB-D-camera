@@ -165,7 +165,6 @@ nbconvert @ file:///tmp/build/80754af9/nbconvert_1624472883256/work
 nbformat @ file:///tmp/build/80754af9/nbformat_1617383369282/work
 nest-asyncio @ file:///tmp/build/80754af9/nest-asyncio_1613680548246/work
 networkx @ file:///tmp/build/80754af9/networkx_1633639043937/work
-nltk==3.6.5
 nose @ file:///tmp/build/80754af9/nose_1606773131901/work
 notebook @ file:///tmp/build/80754af9/notebook_1635411643303/work
 numba @ file:///tmp/build/80754af9/numba_1635174338764/work
@@ -192,7 +191,6 @@ patsy==0.5.2
 pep8==1.7.1
 pexpect @ file:///tmp/build/80754af9/pexpect_1605563209008/work
 pickleshare @ file:///tmp/build/80754af9/pickleshare_1606932040724/work
-Pillow==8.4.0
 pkginfo==1.7.1
 pluggy @ file:///tmp/build/80754af9/pluggy_1615976318790/work
 ply==3.11
