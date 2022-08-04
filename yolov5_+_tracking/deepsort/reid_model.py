@@ -340,13 +340,13 @@ class Extractor(object):
             if model_path.endswith('rgb.pth'):
                 self.net = load_resnet_modified(num_input_channels=3)
             elif model_path.endswith('resnet.pth'):
-                #self.net = ReidAppleNet()
                 self.net = load_resnet_modified()
             elif model_path.endswith('resnet_triplet.pth'):
-                #self.net = ReidAppleNetTriplet()
                 self.net = ReidAppleNetTripletResNet()
             elif model_path.endswith('resnet_triplet_rgb.pth'):
                 self.net = ReidAppleNetTripletResNetRGB()
+            elif model_path.endswith('resnet_triplet_125.pth'):
+                self.net = ReidAppleNetTripletResNet(num_classes=343)
             else:
                 raise ValueError("Unknown model type")
 
@@ -391,7 +391,7 @@ class Extractor(object):
         im_batch = self._preprocess(im_crops)
         with torch.no_grad():
             im_batch = im_batch.to(self.device)
-            if self.model_name.endswith('triplet'):
+            if self.model_name.endswith('triplet') or self.model_name.endswith('triplet_125'):
                 # add 1 dim to the im_batch to match the input of the network
                 im_batch = im_batch.unsqueeze(0)
                 # transpose img (a, b, c, d, e) => (b, a, c, d, e)
@@ -402,4 +402,7 @@ class Extractor(object):
             if self.model_name.endswith('triplet'):
                 # get only the output from the first network (triplet)
                 features = features[:, :914]
+            elif self.model_name.endswith('125'):
+                features = features[:, :343]
+
         return features.cpu().numpy()

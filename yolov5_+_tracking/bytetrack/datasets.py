@@ -163,14 +163,20 @@ class AppleCropsTriplet(Dataset):
     Custom class for the dataset, Apple crops are crops of the apple from the apple tracking dataset (rgb, d, i), to
     use in the training of a triplet network.
     """
-    def __init__(self, root_path, split, transform=None):
+    def __init__(self, root_path, split, only_125=False, transform=None):
         self.root_path = root_path
         self.split = split
+        self.only_125 = only_125
         self.transform = transform
 
         # load pickle file it is a list of lists
-        with open(os.path.join(root_path, 'crops_of_Apple_Tracking_db_numpy', f'{split}_crops.pkl'), 'rb') as f:
-            self.files = pickle.load(f)
+        if not only_125:
+            with open(os.path.join(root_path, 'crops_of_Apple_Tracking_db_numpy', f'{split}_crops.pkl'), 'rb') as f:
+                self.files = pickle.load(f)
+        else:
+            with open(os.path.join(root_path, 'crops_of_Apple_Tracking_db_numpy', f'{split}_crops_125.pkl'),
+                      'rb') as f:
+                self.files = pickle.load(f)
 
         for idx_img, (img, idx) in enumerate(self.files):
             # transpose: (a, b, c) => (c, b, a)

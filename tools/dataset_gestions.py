@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import json
 import shutil
@@ -19,7 +21,7 @@ def refactor_id_frames_extractor():
     """
 
     # path to db
-    path = './data/Apple_Tracking_db'
+    path = '../data/Apple_Tracking_db'
 
     # read excel that contains all the information about the frames
     df = pd.read_excel(os.path.join(path, 'db_info.xlsx'))
@@ -63,7 +65,7 @@ def rotate_images(path_to_images, clockwise=True, test=False):
     """
 
     # path to db
-    path = './data/Apple_Tracking_db'
+    path = '../data/Apple_Tracking_db'
 
     # read all files in that folder
     path_files = os.path.join(path, path_to_images, 'images')
@@ -130,7 +132,7 @@ def rotate_segmentation():
     """
 
     # read info_rotations.txt, it has the info if the rotations of the video are clockwise or counterclockwise
-    with open('./data/Apple_Tracking_db/info_rotations.txt', 'r') as f:
+    with open('../data/Apple_Tracking_db/info_rotations.txt', 'r') as f:
         info = f.readlines()
 
     # get the info
@@ -169,7 +171,7 @@ def rotate_segmentation():
             # plot_gt_bboxes_in_video(annotations, videoname, init_frame=0, end_frame=13)
 
             # save the annotations in the new folder
-            path_to_save = os.path.join('./data/Apple_Tracking_db/', videoname, 'segmentation')
+            path_to_save = os.path.join('../data/Apple_Tracking_db/', videoname, 'segmentation')
 
             # delete ann.json (the annotations that were not rotated)
             os.remove(os.path.join(path_to_save, 'ann.json'))
@@ -177,6 +179,17 @@ def rotate_segmentation():
             # save the annotations in the new folder
             with open(os.path.join(path_to_save, 'ann.json'), 'w') as f:
                 json.dump(annotations, f)
+
+
+def change_name_imgs_in_folder(video_folder):
+    """
+    This function changes a character in the name of the images in a folder.
+    :param video_folder: the folder where the images are
+    """
+    for file in os.listdir(os.path.join('../data/Apple_Tracking_db/', video_folder, 'images')):
+            # change the name of the image: the 13th character change from '0' to '1'
+            os.rename(os.path.join('../data/Apple_Tracking_db/', video_folder, 'images', file),
+                        os.path.join('../data/Apple_Tracking_db/', video_folder, 'images', file[:12] + '1' + file[13:]))
 
 
 def delete_depth_maps(path):
@@ -221,8 +234,7 @@ def generate_yolo_labels():
     img_size = [1080, 1920]
 
     # path to db
-    # path = '../data/Apple_Tracking_db'
-    path = '../data/Zed_dataset'
+    path = '../data/Apple_Tracking_db'
 
     for video_name in os.listdir(path):
         if not (video_name.endswith('.xlsx') or video_name.endswith('.txt')):
@@ -307,6 +319,7 @@ def create_custom_db_for_yolo(path='../data/Apple_Tracking_db',
             os.makedirs(os.path.join(path_to_new_db, partition, 'labels'))
 
     # --------IMAGES AND LABELS CREATION----------
+    print(os.listdir(path))
     for video_name in os.listdir(path):
         if not (video_name.endswith('.xlsx') or video_name.endswith('.txt')):
             print(f'Processing video {video_name} ...')
@@ -508,8 +521,12 @@ def read_depth_or_infrared_file(videoname, file_name, normalization=None, show_i
         # show the image (1 channel => hxw) in a color scale to have a better representation of the depth or IR image
         # apply colormap to the img
         img_show = cv2.applyColorMap(img_show, cv2.COLORMAP_JET)
+        # include a bar with the color scale
         cv2.imshow('image', img_show)
         cv2.waitKey(0)
+
+        # save image in the folder in the actual path
+        #cv2.imwrite(os.path.join(os.getcwd(), file_name + '.png'), img_show)
 
     return img
 
@@ -551,7 +568,7 @@ def compute_max_value_depth_and_infrared_crops(crops):
     return max_d, max_i
 
 
-def get_crops(skip_crops=True):
+def get_crops(skip_crops=True, only125=False):
     """
     This function extracts the crops from the dataset. Returns a list of dicts with the crops where for every crop:
     {
@@ -567,6 +584,13 @@ def get_crops(skip_crops=True):
     crops = []
     for video_name in os.listdir(path_db):
         if not (video_name.endswith('.txt') or video_name.endswith('.xlsx')):
+            # get the distance in cm between the apple and the camera
+            distance = float(video_name.split('_')[-2])
+            # if the distance is greater than 125 cm, skip the file
+            if only125:
+                if distance > 125:
+                    continue
+
             path_to_frames = os.path.join(path_db, video_name, 'segmentation', 'labels_yolo_format+ids')
             for file in os.listdir(path_to_frames):
                 # read the file
@@ -641,13 +665,13 @@ def generate_csv_from_crops():
                         f'{crop["id"]}\n')
 
 
-def generate_crops_numpy(add_D_and_I=True):
+def generate_crops_numpy(add_D_and_I=True, only125=False):
     """
     This function generates a numpy file with the crops from the dataset. The numpy file is in the folder
     crops_of_Apple_Tracking_db_numpy.
     :param add_D_and_I: if True, the numpy file will contain the depth and infrared images. If False, the numpy file
     """
-    crops = get_crops(skip_crops=True)
+    crops = get_crops(skip_crops=True, only125=only125)
 
     # get max value of depth and infrared crops
     # max_d, max_i = compute_max_value_depth_and_infrared_crops(crops)
@@ -719,24 +743,34 @@ def generate_crops_numpy(add_D_and_I=True):
             test_crops[idx] = [crops[i] for i in indexes]
 
     # save the crops in a pickle file, named train and test respectively
-    if add_D_and_I:
+    if add_D_and_I and only125:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_125.pkl')
+    elif add_D_and_I and not only125:
         path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    elif not add_D_and_I and only125:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I_125.pkl')
     else:
         path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I.pkl')
+
     with open(path_to_train_crops, 'wb') as f:
         pickle.dump(train_crops, f)
 
-    if add_D_and_I:
+    if add_D_and_I and only125:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_125.pkl')
+    elif add_D_and_I and not only125:
         path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    elif not add_D_and_I and only125:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I_125.pkl')
     else:
         path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I.pkl')
+
     with open(path_to_test_crops, 'wb') as f:
         pickle.dump(test_crops, f)
 
     #redistribute_crops_numpy()
 
 
-def redistribute_crops_numpy(add_D_and_I=True):
+def redistribute_crops_numpy(add_D_and_I=True, only125=False):
     """
     This function redistributes the crops in the train and test numpy files in the folder
     crops_of_Apple_Tracking_db_numpy. Basically puts all the crops in a list with a id as index and the crops as value.
@@ -749,16 +783,27 @@ def redistribute_crops_numpy(add_D_and_I=True):
         generate_crops_numpy()
 
     # load the crops in a pickle file
-    if add_D_and_I:
+    if add_D_and_I and only125:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_125.pkl')
+    elif add_D_and_I and not only125:
         path_to_train_crops = os.path.join(path_to_crops, 'train_crops.pkl')
+    elif not add_D_and_I and only125:
+        path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I_125.pkl')
     else:
         path_to_train_crops = os.path.join(path_to_crops, 'train_crops_without_D_and_I.pkl')
+
     with open(path_to_train_crops, 'rb') as f:
         train_crops = pickle.load(f)
-    if add_D_and_I:
+
+    if add_D_and_I and only125:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_125.pkl')
+    elif add_D_and_I and not only125:
         path_to_test_crops = os.path.join(path_to_crops, 'test_crops.pkl')
+    elif not add_D_and_I and only125:
+        path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I_125.pkl')
     else:
         path_to_test_crops = os.path.join(path_to_crops, 'test_crops_without_D_and_I.pkl')
+
     with open(path_to_test_crops, 'rb') as f:
         test_crops = pickle.load(f)
 
@@ -1003,10 +1048,13 @@ def stack_imgs_for_embeddings(db, visualize_images=False):
             # rgb-d-i dataset
             if files_by_id[0][0].shape[-1] == 5:
                 # in subplot
-                ax[1].imshow(img[:, :, 3])
-                ax[1].set_title('depth')
+                cmap = plt.cm.get_cmap("jet")
+                # print legend for the color map
+                ax[1].imshow(img[:, :, 3], cmap=cmap)
+                ax[1].set_title('dept0h')
                 ax[1].axis('off')
-                ax[2].imshow(img[:, :, 4])
+                # save image with the legend
+                ax[2].imshow(img[:, :, 4], cmap=cmap)
                 ax[2].set_title('infrared')
                 ax[2].axis('off')
                 # wait key button 0
@@ -1028,20 +1076,20 @@ def stack_imgs_for_embeddings(db, visualize_images=False):
 
 if __name__ == "__main__":
     # refactor_id_frames_extractor()
-    # rotate_images(path_to_images='210928_165030_k_r2_w_015_125_162', clockwise=False, test=True)
+    # change_name_imgs_in_folder('210928_165031_k_r2_w_015_125_162')
+    # rotate_images(path_to_images='210906_121931_k_r2_e_015_125_162', clockwise=False, test=False)
     # rotate_segmentation()
     # generate_yolo_labels()
-    # create_custom_db_for_yolo(path='../data/Zed_dataset',
-    #    path_to_new_db='../yolov5_+_tracking/datasets/Zed_dataset_yolo')
+    # create_custom_db_for_yolo()
     # generate_yolo_labels_and_ids()
     # extract_frames_zed_camera()
-    # read_depth_or_infrared_file('210928_165030_k_r2_w_015_125_162', '210928_165030_k_r2_w_015_125_162_209_50_D',
-    # show_img=True)
-    # generate_crops()
-    # generate_crops_numpy(False)
+    # read_depth_or_infrared_file('210928_094225_k_r2_e_015_175_162', '210928_094225_k_r2_e_015_175_162_61_59_I', normalization=None, show_img=True)
+
+    generate_crops_numpy(add_D_and_I=True, only125=True)
+    # redistribute_crops_numpy(add_D_and_I=True, only125=False)
+
     # generate_csv_from_crops()
     # compute_max_value_depth_and_infrared_crops()
-    # redistribute_crops_numpy(False)
     # get_info_crops()
     # show imported packages sys.path
     # add path '/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking'

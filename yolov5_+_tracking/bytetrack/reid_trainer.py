@@ -30,13 +30,13 @@ def main():
     wandb.init(project="reid_training", entity="cesc47")
 
     # type of network: reid or reid_triplet
-    network = 'reid_resnet_rgb'
+    network = 'reid_resnet_triplet_125'
 
     # raise error if network is not reid or reid_triplet
     if network not in ['reid', 'reid_triplet', 'reid_resnet', 'reid_resnet_rgb', 'reid_resnet_triplet',
-                       'reid_resnet_triplet_rgb']:
+                       'reid_resnet_triplet_rgb', 'reid_resnet_triplet_125']:
         raise ValueError('network must be either reid, reid_triplet, reid_resnet, reid_resnet_rgb, reid_resnet_triplet_rgb '
-                         'or reid_resnet_triplet')
+                         'reid_resnet_triplet or reid_resnet_triplet_125')
 
     # cuda management
     device = 'cuda'
@@ -63,6 +63,8 @@ def main():
         model_id = 'reid_applenet_resnet_rgb'
     elif network == 'reid_resnet_triplet':
         model_id = 'reid_applenet_resnet_triplet'
+    elif network == 'reid_resnet_triplet_125':
+        model_id = 'reid_applenet_resnet_triplet_125'
     elif network == 'reid_resnet_triplet_rgb':
         model_id = 'reid_applenet_resnet_triplet_rgb'
     else:
@@ -115,13 +117,18 @@ def main():
         test_db = AppleCropsTripletRGB(root_path=root_path,
                                        split='test',
                                        transform=transformations)
-
     else:
+        only125 = False
+        if network == 'reid_resnet_triplet_125':
+            only125 = True
+
         train_db = AppleCropsTriplet(root_path=root_path,
                                      split='train',
+                                     only_125=only125,
                                      transform=transformations)
         test_db = AppleCropsTriplet(root_path=root_path,
                                     split='test',
+                                    only_125=only125,
                                     transform=transformations)
 
     # creation of the dataloaders
@@ -145,7 +152,9 @@ def main():
     elif network == 'reid_resnet_rgb':
         model = load_resnet_modified(num_input_channels=3)
     elif network == 'reid_resnet_triplet':
-        model = ReidAppleNetTripletResNet()
+        model = ReidAppleNetTripletResNet(num_classes=914)
+    elif network == 'reid_resnet_triplet_125':
+        model = ReidAppleNetTripletResNet(num_classes=343)
     elif network == 'reid_resnet_triplet_rgb':
         model = ReidAppleNetTripletResNetRGB()
     else:

@@ -9,7 +9,7 @@ import sys
 import torch
 
 # located in data/Apple_tracking_db
-GLOBAL_PATH_DB = './data/Apple_Tracking_db'
+GLOBAL_PATH_DB = '../data/Apple_Tracking_db'
 
 
 def plot_gt_bboxes_in_img(annotations, video_name, frame_num, draw_centroids=False, show_img=False):
@@ -27,7 +27,8 @@ def plot_gt_bboxes_in_img(annotations, video_name, frame_num, draw_centroids=Fal
 
 
     # load the annotations for that specific frame
-    annotation = annotations['frames'][frame_num]
+    #annotation = annotations['frames'][frame_num]
+    annotation = annotations['frames'][0]
     path_images = os.path.join(GLOBAL_PATH_DB, video_name, 'images')
 
     # read all path_images sorted
@@ -314,7 +315,12 @@ if __name__ == "__main__":
     """
     Test in this main to visualize some embeddings from the crops of the apples (using a trained a triplet network).
     """
-
+    from read_segmentation import read_segmentation
+    video_name = '210906_121931_k_r2_e_015_125_162'
+    # read the segmentation
+    segmentation = read_segmentation(video_name)
+    plot_gt_bboxes_in_img(segmentation, video_name, 0, draw_centroids=False, show_img=True)
+    """
     sys.path.append('/home/francesc/PycharmProjects/Fruit-Tracking-with-RGB-D-camera/yolov5_+_tracking/bytetrack')
     from reid_net import ReidAppleNetTripletResNet, ReidAppleNetTripletResNetRGB
     from datasets import AppleCropsTriplet, AppleCropsTripletRGB
@@ -344,3 +350,4 @@ if __name__ == "__main__":
                                        transform=None)
 
     umap_from_embeddings(db_triplet, only_rgb, model)
+    """
